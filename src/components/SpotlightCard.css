@@ -1,0 +1,123 @@
+.card-spotlight {
+  position: relative;
+  border-radius: 1.5rem;
+  border: 1px solid #222;
+  background-color: #111;
+  padding: 2rem;
+  overflow: hidden;
+  --mouse-x: 50%;
+  --mouse-y: 50%;
+  --spotlight-color: rgba(255, 255, 255, 0.05);
+}
+
+.card-spotlight::before {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  content: "";
+  background: radial-gradient(
+    circle at var(--mouse-x) var(--mouse-y),
+    var(--spotlight-color),
+    transparent 80%
+  );
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  pointer-events: none;
+}
+
+.card-spotlight:hover::before,
+.card-spotlight:focus-within::before {
+  opacity: 0.6;
+}
+
+.feature-card {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  aspect-ratio: 1.48;
+  border: 1px solid hsl(var(--border));
+  border-radius: 1.25rem;
+  padding: 0;
+  background: hsl(var(--card));
+  isolation: isolate;
+  outline: none;
+  transition: border-color 200ms cubic-bezier(0.5, 1, 0.89, 1);
+}
+
+.feature-card:focus-visible {
+  border-color: hsl(var(--ring));
+  box-shadow: 0 0 0 3px hsl(var(--ring) / 0.25);
+}
+
+.feature-card__image {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 700ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.feature-card:hover .feature-card__image {
+  transform: scale(1.035);
+}
+
+.feature-card__gradient {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgb(2 16 30 / 42%) 0%,
+    rgb(2 20 38 / 12%) 35%,
+    rgb(4 55 104 / 58%) 65%,
+    rgb(5 42 96 / 94%) 100%
+  );
+  pointer-events: none;
+}
+
+.feature-card__content {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: clamp(1.25rem, 3vw, 2rem);
+  color: white;
+}
+
+.feature-card__title {
+  max-width: 30rem;
+  margin-top: 0.75rem;
+  font-size: clamp(1rem, 1.7vw, 1.45rem);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+  text-shadow: 0 2px 12px rgb(0 0 0 / 35%);
+}
+
+.feature-card__description {
+  max-width: 34rem;
+  margin-top: 1.5rem;
+  color: rgb(255 255 255 / 92%);
+  font-size: clamp(0.9rem, 1.2vw, 1rem);
+  line-height: 1.55;
+  text-shadow: 0 1px 8px rgb(0 0 0 / 28%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-spotlight::before {
+    transition: none;
+  }
+
+  .feature-card__image {
+    transition: none;
+  }
+
+  .feature-card:hover .feature-card__image {
+    transform: none;
+  }
+}

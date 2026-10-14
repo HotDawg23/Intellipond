@@ -1,0 +1,146 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* IntelliPond palette - deep aquaculture */
+    --background: 200 30% 98%;
+    --foreground: 215 45% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 215 45% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 45% 12%;
+
+    --primary: 210 85% 22%;          /* deep blue */
+    --primary-foreground: 195 100% 97%;
+    --primary-glow: 195 90% 55%;
+
+    --secondary: 188 75% 92%;        /* aqua tint */
+    --secondary-foreground: 210 75% 18%;
+
+    --muted: 200 25% 94%;
+    --muted-foreground: 210 18% 42%;
+
+    --accent: 188 85% 45%;           /* aqua */
+    --accent-foreground: 0 0% 100%;
+
+    --success: 152 60% 42%;          /* soft green */
+    --success-foreground: 0 0% 100%;
+
+    --warning: 35 92% 52%;
+    --warning-foreground: 0 0% 100%;
+
+    --destructive: 0 75% 52%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 205 30% 88%;
+    --input: 205 30% 90%;
+    --ring: 188 85% 45%;
+
+    --radius: 0.7rem;
+
+    --gradient-deep: linear-gradient(135deg, hsl(210 85% 18%), hsl(200 70% 32%) 60%, hsl(188 75% 45%));
+    --gradient-aqua: linear-gradient(120deg, hsl(195 90% 55%), hsl(188 85% 45%));
+    --gradient-surface: linear-gradient(180deg, hsl(200 30% 99%), hsl(195 40% 95%));
+    --shadow-elevated: 0 20px 60px -25px hsl(210 85% 22% / 0.35);
+    --shadow-soft: 0 4px 24px -8px hsl(210 50% 30% / 0.15);
+    --shadow-glow: 0 0 40px hsl(188 85% 55% / 0.45);
+
+    --sidebar-background: 210 80% 14%;
+    --sidebar-foreground: 195 40% 88%;
+    --sidebar-primary: 188 85% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 60% 20%;
+    --sidebar-accent-foreground: 195 90% 92%;
+    --sidebar-border: 210 50% 22%;
+    --sidebar-ring: 188 85% 55%;
+  }
+
+  .dark {
+    --background: 215 50% 7%;
+    --foreground: 195 40% 95%;
+    --card: 215 45% 10%;
+    --card-foreground: 195 40% 95%;
+    --popover: 215 45% 10%;
+    --popover-foreground: 195 40% 95%;
+    --primary: 188 85% 50%;
+    --primary-foreground: 215 50% 8%;
+    --secondary: 215 35% 16%;
+    --secondary-foreground: 195 40% 95%;
+    --muted: 215 30% 14%;
+    --muted-foreground: 200 20% 65%;
+    --accent: 188 85% 45%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 215 30% 18%;
+    --input: 215 30% 18%;
+    --ring: 188 85% 50%;
+  }
+}
+
+@layer base {
+  * { @apply border-border; }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3, h4 { font-family: 'Space Grotesk', sans-serif; letter-spacing: -0.02em; }
+  .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+  .landing-page,
+  .landing-page h1,
+  .landing-page h2,
+  .landing-page h3,
+  .landing-page h4,
+  .landing-page .font-mono {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+  }
+
+  .auth-page,
+  .auth-page * {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-card/70 backdrop-blur-xl border border-border/60;
+    box-shadow: var(--shadow-soft);
+  }
+  .stat-tile {
+    @apply relative overflow-hidden rounded-2xl border border-border bg-card p-5 transition-all hover:border-accent/40;
+    box-shadow: var(--shadow-soft);
+  }
+  .stat-tile::before {
+    content: '';
+    @apply absolute inset-x-0 top-0 h-1;
+    background: var(--gradient-aqua);
+    opacity: 0.6;
+  }
+  .gradient-deep { background: var(--gradient-deep); }
+  .gradient-aqua { background: var(--gradient-aqua); }
+  .text-gradient {
+    background: var(--gradient-aqua);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .ripple-dot {
+    @apply relative inline-flex h-2.5 w-2.5 rounded-full;
+  }
+  .ripple-dot::after {
+    content: '';
+    @apply absolute inset-0 rounded-full animate-ping opacity-70;
+    background: inherit;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin::-webkit-scrollbar { width: 6px; height: 6px; }
+  .scrollbar-thin::-webkit-scrollbar-thumb { background: hsl(var(--muted-foreground) / 0.3); border-radius: 3px; }
+}
