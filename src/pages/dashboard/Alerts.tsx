@@ -1,48 +1,116 @@
-import { useEffect, useState } from "react";
-import { AppShell } from "@/components/AppShell";
-import { PageHeader, EmptyState } from "@/components/Common";
-import { supabase } from "@/integrations/supabase/client";
-import { Card } from "@/components/ui/card";
+import { useCallback, useEffect, useState } from "react";
 import { Bell } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { format } from "date-fns";
+import { toast } from "sonner";
+import { AppShell } from "@/components/AppShell";
+import AlertIncidentCard from "@/components/AlertIncidentCard";
+import AlertListFilters from "@/components/AlertListFilters";
+import { EmptyState, PageHeader } from "@/components/Common";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import type { AlertRecord } from "@/lib/alerts";
+import { isAlertWithinDateRange, type AlertDateRangeFilter, type AlertSeverityFilter } from "@/lib/alertFilters";
 
 const Alerts = () => {
-  const [alerts, setAlerts] = useState<any[]>([]);
-  useEffect(() => {
-    const load = () => supabase.from("alerts").select("*").order("created_at", { ascending: false }).then(({ data }) => setAlerts(data ?? []));
-    load();
-    const ch = supabase.channel("alerts-u").on("postgres_changes", { event: "*", schema: "public", table: "alerts" }, load).subscribe();
-    return () => { supabase.removeChannel(ch); };
+  const { role, approved } = useAuth();
+  const [alerts, setAlerts] = useState<AlertRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [acknowledgingId, setAcknowledgingId] = useState<string | null>(null);
+  const [severityFilter, setSeverityFilter] = useState<AlertSeverityFilter>("all");
+  const [dateRange, setDateRange] = useState<AlertDateRangeFilter>("all");
+  const canAcknowledge = role === "admin" || (role === "operator" && approved);
+
+  const load = useCallback(async () => {
+    const { data, error } = await supabase.from("alerts").select("*").order("created_at", { ascending: false });
+    if (error) toast.error("Could not load alerts", { description: error.message });
+    else setAlerts(data ?? []);
+    setLoading(false);
   }, []);
+
+  useEffect(() => {
+    void load();
+    const channel = supabase.channel("alerts-operator")
+      .on("postgres_changes", { event: "*", schema: "public", table: "alerts" }, () => { void load(); })
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [load]);
+
+  const acknowledge = async (id: string) => {
+    setAcknowledgingId(id);
+    const { data, error } = await supabase.from("alerts")
+      .update({ acknowledged: true })
+      .eq("id", id)
+      .eq("status", "active")
+      .eq("acknowledged", false)
+      .select("*")
+      .maybeSingle();
+    setAcknowledgingId(null);
+    if (error) return toast.error("Could not acknowledge alert", { description: error.message });
+    if (!data) return toast.info("This incident was already acknowledged or is no longer active.");
+    setAlerts(current => current.map(alert => alert.id === id ? data : alert));
+    toast.success("Alert acknowledged");
+  };
+
+  const dateFilteredAlerts = alerts.filter(alert => isAlertWithinDateRange(alert.created_at, dateRange));
+  const filteredAlerts = dateFilteredAlerts.filter(alert => severityFilter === "all" || alert.severity === severityFilter);
+
+  const clearFilters = () => {
+    setSeverityFilter("all");
+    setDateRange("all");
+  };
 
   return (
     <AppShell>
-      <PageHeader title="Alerts & Recommendations" subtitle="Notifications about pond conditions." />
-      {alerts.length === 0 ? (
-        <Card className="p-6"><EmptyState icon={Bell} title="No alerts yet." description="You'll be notified here when pond conditions need attention." /></Card>
+      <PageHeader title="Alerts & Recommendations" subtitle="Current and past incidents for pond conditions." />
+      {loading ? (
+        <Card className="p-6 text-sm text-muted-foreground" role="status">Loading alerts...</Card>
+      ) : alerts.length === 0 ? (
+        <Card className="p-6">
+          <EmptyState icon={Bell} title="No alerts yet." description="You'll be notified here when pond conditions need attention." />
+        </Card>
       ) : (
-        <div className="space-y-3">
-          {alerts.map(a => (
-            <Card key={a.id} className="flex items-start gap-3 p-4 sm:gap-4 sm:p-5">
-              <div className={`h-10 w-10 shrink-0 rounded-xl grid place-items-center ${a.severity === "critical" ? "bg-destructive/10 text-destructive" : a.severity === "warning" ? "bg-warning/10 text-warning" : "bg-accent/10 text-accent"}`}>
-                <Bell className="h-5 w-5" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="mb-1 flex flex-wrap items-center gap-2">
-                  <Badge variant="outline" className="text-[10px] uppercase">{a.category}</Badge>
-                  <Badge className="text-[10px] uppercase border-0" variant={a.severity === "critical" ? "destructive" : "secondary"}>{a.severity}</Badge>
-                  {a.acknowledged && <Badge variant="outline" className="text-[10px]">Acknowledged</Badge>}
-                </div>
-                <div className="break-words font-medium">{a.message}</div>
-                {a.recommendation && <div className="mt-1 break-words text-sm text-muted-foreground">Recommendation: {a.recommendation}</div>}
-                <div className="text-xs text-muted-foreground mt-2 font-mono">{format(new Date(a.created_at), "MMM d, yyyy · HH:mm")}</div>
+        <div className="space-y-5">
+          <Card className="border-border/70 bg-gradient-to-br from-card to-muted/30 p-4 shadow-sm sm:p-5">
+            <AlertListFilters
+              severity={severityFilter}
+              onSeverityChange={setSeverityFilter}
+              dateRange={dateRange}
+              onDateRangeChange={setDateRange}
+            />
+          </Card>
+          {filteredAlerts.length === 0 ? (
+            <Card className="p-6">
+              <EmptyState icon={Bell} title="No alerts match these filters." description="Try a different severity or date range." />
+              <div className="mt-4 flex justify-center">
+                <Button variant="outline" onClick={clearFilters}>Clear filters</Button>
               </div>
             </Card>
-          ))}
+          ) : (
+            <>
+              <div className="flex items-center justify-between px-1">
+                <h2 className="text-sm font-semibold tracking-wide text-muted-foreground">Incident timeline</h2>
+                <span className="text-xs text-muted-foreground">{filteredAlerts.length} {filteredAlerts.length === 1 ? "incident" : "incidents"}</span>
+              </div>
+              <div className="space-y-3">
+                {filteredAlerts.map(alert => (
+                  <AlertIncidentCard
+                    key={alert.id}
+                    alert={alert}
+                    canAcknowledge={canAcknowledge}
+                    acknowledging={acknowledgingId === alert.id}
+                    useCoolveticaForStatus
+                    useBitcountGridForReading
+                    onAcknowledge={() => void acknowledge(alert.id)}
+                  />
+                ))}
+              </div>
+            </>
+          )}
         </div>
       )}
     </AppShell>
   );
 };
+
 export default Alerts;

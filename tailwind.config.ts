@@ -13,6 +13,13 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        sans: ["'Plus Jakarta Sans'", "sans-serif"],
+        serif: ["'Plus Jakarta Sans'", "sans-serif"],
+        mono: ["'Plus Jakarta Sans'", "sans-serif"],
+        "bitcount-grid-single": ["'Bitcount Grid Single'", "sans-serif"],
+        coolvetica: ["Coolvetica", "'Plus Jakarta Sans'", "sans-serif"],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",

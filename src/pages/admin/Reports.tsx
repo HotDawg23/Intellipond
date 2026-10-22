@@ -11,10 +11,12 @@ import { FileText, Download, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { downloadGrowthRecordsCsv } from "@/lib/growth-records-export";
 
 const Reports = () => {
   const [reports, setReports] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
+  const [exportingGrowth, setExportingGrowth] = useState(false);
   const [form, setForm] = useState({ title: "", description: "" });
 
   const load = () => supabase.from("reports").select("*").order("created_at", { ascending: false }).then(({ data }) => setReports(data ?? []));
@@ -38,11 +40,27 @@ const Reports = () => {
     a.href = URL.createObjectURL(blob); a.download = `sensor-readings-${Date.now()}.csv`; a.click();
   };
 
+  const exportGrowthCsv = async () => {
+    setExportingGrowth(true);
+    try {
+      const count = await downloadGrowthRecordsCsv();
+      if (count === 0) toast.error("No growth records to export");
+      else toast.success(`Exported ${count} growth record${count === 1 ? "" : "s"}`);
+    } catch (error) {
+      toast.error(`Could not export growth records: ${error instanceof Error ? error.message : "unknown error"}`);
+    } finally {
+      setExportingGrowth(false);
+    }
+  };
+
   return (
     <AppShell admin>
       <PageHeader title="Reports" subtitle="Generate and export system reports."
         actions={<>
           <Button variant="outline" onClick={exportCSV}><Download className="h-4 w-4 mr-2" />Export readings</Button>
+          <Button variant="outline" onClick={() => void exportGrowthCsv()} disabled={exportingGrowth}>
+            <Download className="h-4 w-4 mr-2" />{exportingGrowth ? "Exporting…" : "Export growth CSV"}
+          </Button>
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild><Button className="gradient-aqua text-white border-0"><Plus className="h-4 w-4 mr-2" />New report</Button></DialogTrigger>
             <DialogContent>

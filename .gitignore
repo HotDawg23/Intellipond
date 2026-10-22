@@ -7,15 +7,18 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Local configuration and provider secrets
+.env
+.env.*
+!.env.example
+supabase/functions/.env
+supabase/functions/.env.*
+!supabase/functions/.env.example
+
 node_modules
 dist
 dist-ssr
 *.local
-
-# Environment files
-.env
-.env.*
-!.env.example
 
 # Editor directories and files
 .vscode/*
@@ -28,4 +31,4 @@ dist-ssr
 *.sln
 *.sw?
 
-.vercel
+supabase/.temp/

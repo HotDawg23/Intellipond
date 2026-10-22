@@ -1,21 +1,71 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
-const FROM_EMAIL = "tsunaalfonso@gmail.com";
+const FROM_EMAIL = "karlopasaoa@gmail.com";
 const FROM_NAME = "IntelliPond";
+const ALLOWED_REDIRECT_ORIGINS = new Set([
+  "https://intellipond.vercel.app",
+  "http://localhost:5173",
+  "http://localhost:8080",
+]);
 
-Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+const corsHeadersFor = (origin: string | null) => ({
+  "Access-Control-Allow-Origin": origin && ALLOWED_REDIRECT_ORIGINS.has(origin) ? origin : "null",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Vary": "Origin",
+});
+
+const getAllowedRedirect = (redirectTo: unknown): string | null => {
+  if (typeof redirectTo !== "string") return null;
 
   try {
-    const { email, redirectTo } = await req.json();
-    if (!email || typeof email !== "string") {
+    const url = new URL(redirectTo);
+    if (
+      !ALLOWED_REDIRECT_ORIGINS.has(url.origin) ||
+      url.pathname !== "/reset-password" ||
+      url.search ||
+      url.hash ||
+      url.username ||
+      url.password
+    ) {
+      return null;
+    }
+
+    return `${url.origin}/reset-password`;
+  } catch {
+    return null;
+  }
+};
+
+Deno.serve(async (req) => {
+  const origin = req.headers.get("origin");
+  const corsHeaders = corsHeadersFor(origin);
+
+  if (origin && !ALLOWED_REDIRECT_ORIGINS.has(origin)) {
+    return new Response(JSON.stringify({ error: "origin not allowed" }), {
+      status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  if (req.method !== "POST") {
+    return new Response(JSON.stringify({ error: "method not allowed" }), {
+      status: 405, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  try {
+    const { email, redirectTo: requestedRedirect } = await req.json();
+    if (typeof email !== "string" || !email.trim()) {
       return new Response(JSON.stringify({ error: "email required" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const redirectTo = getAllowedRedirect(requestedRedirect);
+    if (!redirectTo) {
+      return new Response(JSON.stringify({ error: "invalid redirect URL" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -28,7 +78,7 @@ Deno.serve(async (req) => {
     // Generate a recovery link via admin API (does NOT send any email)
     const { data, error } = await admin.auth.admin.generateLink({
       type: "recovery",
-      email,
+      email: email.trim(),
       options: { redirectTo },
     });
 

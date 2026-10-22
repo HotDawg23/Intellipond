@@ -86,25 +86,10 @@
   * { @apply border-border; }
   body {
     @apply bg-background text-foreground;
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: 'Plus Jakarta Sans', sans-serif;
     -webkit-font-smoothing: antialiased;
   }
-  h1, h2, h3, h4 { font-family: 'Space Grotesk', sans-serif; letter-spacing: -0.02em; }
-  .font-mono { font-family: 'JetBrains Mono', monospace; }
-
-  .landing-page,
-  .landing-page h1,
-  .landing-page h2,
-  .landing-page h3,
-  .landing-page h4,
-  .landing-page .font-mono {
-    font-family: 'Plus Jakarta Sans', sans-serif;
-  }
-
-  .auth-page,
-  .auth-page * {
-    font-family: 'Plus Jakarta Sans', sans-serif;
-  }
+  h1, h2, h3, h4 { letter-spacing: -0.02em; }
 }
 
 @layer components {

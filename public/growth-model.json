@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "model_version": "2026-10-public-milkfish-reference-v1",
+  "model_name": "Pooled median daily log-growth rate",
+  "target_horizon_days": 7,
+  "outputs": {
+    "avg_weight_g": {
+      "daily_log_growth_median": 0.01615328745230794,
+      "daily_log_growth_p10": 0.008301820585226289,
+      "daily_log_growth_p90": 0.028606928216644203,
+      "cohort_count": 3
+    },
+    "avg_length_cm": {
+      "daily_log_growth_median": 0.0056825799249817606,
+      "daily_log_growth_p10": 0.002977340639512604,
+      "daily_log_growth_p90": 0.009757635907045073,
+      "cohort_count": 3
+    }
+  },
+  "training_data": {
+    "measurement_count": 8,
+    "cohort_count": 3,
+    "transition_count": 5,
+    "sources": [
+      "WorldFish 2016-07"
+    ],
+    "bfar_cohort_count": 0,
+    "day_gaps_between_measurements": {
+      "min": 99,
+      "max": 127
+    }
+  },
+  "validation": {
+    "method": "leave-one-cohort-out; each test interval retains its observed duration",
+    "forecast_horizon_days": null,
+    "note": "The published measurements are months apart; these errors do not validate a seven-day forecast.",
+    "metrics": {
+      "avg_weight_g": {
+        "held_out_intervals": 5,
+        "model_mae": 238.1572,
+        "recent_rate_baseline_mae": 2004.4122,
+        "baseline_intervals": 2,
+        "unit": "g"
+      },
+      "avg_length_cm": {
+        "held_out_intervals": 5,
+        "model_mae": 13.7647,
+        "recent_rate_baseline_mae": 31.6876,
+        "baseline_intervals": 2,
+        "unit": "cm"
+      }
+    }
+  },
+  "seven_day_validation": {
+    "status": "not_validated",
+    "holdout_method": "leave-one-BFAR-cohort-out",
+    "minimum_held_out_cohorts": 3,
+    "note": "Requires exact seven-day measurement pairs from at least three separate BFAR stocking batches, with lower error than the recent-rate baseline for both measurements.",
+    "metrics": {
+      "avg_weight_g": {
+        "held_out_cohorts": 0,
+        "seven_day_pairs": 0,
+        "model_mae": null,
+        "recent_rate_baseline_mae": null,
+        "baseline_pairs": 0,
+        "unit": "g"
+      },
+      "avg_length_cm": {
+        "held_out_cohorts": 0,
+        "seven_day_pairs": 0,
+        "model_mae": null,
+        "recent_rate_baseline_mae": null,
+        "baseline_pairs": 0,
+        "unit": "cm"
+      }
+    },
+    "tested_bfar_cohorts": 0
+  },
+  "sources": [
+    {
+      "title": "The feasibility of milkfish (Chanos chanos) aquaculture in Solomon Islands",
+      "publisher": "WorldFish",
+      "year": 2016,
+      "license": "CC BY 4.0",
+      "url": "https://digitalarchive.worldfishcenter.org/items/d63bc10f-eec1-4053-86c9-08106a92c55e"
+    }
+  ],
+  "training_sources": [
+    "WorldFish 2016-07"
+  ]
+}

@@ -1,17 +1,17 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader, EmptyState } from "@/components/Common";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Droplets, FlaskConical, Thermometer, Eye, Activity, Fish, AlertCircle, Waves, TrendingUp, Siren, Lightbulb, WifiOff } from "lucide-react";
-import { toast } from "sonner";
 
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { evaluatePond, getSettings, Settings, DEFAULT_SETTINGS } from "@/lib/pond";
 import { isSensorOffline, SENSOR_OFFLINE_AFTER_MINUTES } from "@/lib/sensor-status";
 import type { Tables } from "@/integrations/supabase/types";
 import { format } from "date-fns";
+import { formatAlertReading, getAlertStatusLabel } from "@/lib/alerts";
 
 type SensorReading = Tables<"sensor_readings">;
 type PondAlert = Tables<"alerts">;
@@ -21,20 +21,22 @@ const Dashboard = () => {
   const [history, setHistory] = useState<SensorReading[]>([]);
   const [pondCount, setPondCount] = useState(0);
   const [alerts, setAlerts] = useState<PondAlert[]>([]);
+  const [activeAlertCount, setActiveAlertCount] = useState(0);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [growthCount, setGrowthCount] = useState(0);
-  const [highlightAlert, setHighlightAlert] = useState<PondAlert | null>(null);
+  const [dismissedAlertId, setDismissedAlertId] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(() => Date.now());
 
   useEffect(() => {
     let mounted = true;
     const load = async () => {
-      const [s, ponds, latestR, hist, al, gr] = await Promise.all([
+      const [s, ponds, latestR, hist, al, activeAl, gr] = await Promise.all([
         getSettings(),
         supabase.from("pond_profiles").select("id", { count: "exact", head: true }),
         supabase.from("sensor_readings").select("*").order("recorded_at", { ascending: false }).limit(1).maybeSingle(),
         supabase.from("sensor_readings").select("*").order("recorded_at", { ascending: false }).limit(24),
-        supabase.from("alerts").select("*").eq("acknowledged", false).order("created_at", { ascending: false }).limit(5),
+        supabase.from("alerts").select("*").eq("status", "active").order("last_detected_at", { ascending: false }).limit(5),
+        supabase.from("alerts").select("id", { count: "exact", head: true }).eq("status", "active"),
         supabase.from("bangus_growth_records").select("id", { count: "exact", head: true }),
       ]);
       if (!mounted) return;
@@ -43,22 +45,14 @@ const Dashboard = () => {
       setLatest(latestR.data);
       setHistory((hist.data ?? []).reverse());
       setAlerts(al.data ?? []);
+      setActiveAlertCount(activeAl.count ?? 0);
       setGrowthCount(gr.count ?? 0);
     };
     load();
     const ch = supabase.channel("dash").on("postgres_changes", { event: "*", schema: "public", table: "sensor_readings" }, load).subscribe();
     const alertCh = supabase
       .channel("dash-alerts")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "alerts" }, (payload) => {
-        const a = payload.new as PondAlert;
-        if (a.severity === "critical" || a.severity === "warning") {
-          setHighlightAlert(a);
-          toast[a.severity === "critical" ? "error" : "warning" as "error"](a.message, {
-            description: a.recommendation ?? undefined,
-          });
-        }
-        setAlerts((prev) => [a, ...prev].slice(0, 5));
-      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "alerts" }, load)
       .subscribe();
     return () => { mounted = false; supabase.removeChannel(ch); supabase.removeChannel(alertCh); };
   }, []);
@@ -68,11 +62,8 @@ const Dashboard = () => {
     return () => window.clearInterval(intervalId);
   }, []);
 
-  // Seed the highlight from the most recent unacknowledged critical/warning alert on load
-  useEffect(() => {
-    const top = alerts.find((a) => a.severity === "critical" || a.severity === "warning");
-    if (top) setHighlightAlert((current) => current ?? top);
-  }, [alerts]);
+  const dismissedIncidentIsActive = alerts.some(alert => alert.id === dismissedAlertId);
+  const highlightAlert = alerts.find(alert => !dismissedIncidentIsActive || alert.id !== dismissedAlertId) ?? null;
 
   const evaluation = evaluatePond(latest, settings);
   const sensorOffline = isSensorOffline(latest?.recorded_at ?? null, currentTime);
@@ -140,13 +131,17 @@ const Dashboard = () => {
                     : "border-warning/40 text-warning"
                 }`}
               >
-                {highlightAlert.severity} · new recommendation
+                <span className="font-coolvetica">{highlightAlert.severity} · {getAlertStatusLabel(highlightAlert)}</span>
               </Badge>
               <span className="text-[10px] text-muted-foreground font-mono">
-                {format(new Date(highlightAlert.created_at), "MMM d · HH:mm")}
+                First detected {format(new Date(highlightAlert.created_at), "MMM d · HH:mm")}
               </span>
             </div>
             <div className="break-words text-base font-semibold leading-snug">{highlightAlert.message}</div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              Last detected {format(new Date(highlightAlert.last_detected_at ?? highlightAlert.created_at), "MMM d · HH:mm")}
+              {formatAlertReading(highlightAlert) && <> · Latest value <span className="font-bitcount-grid-single">{formatAlertReading(highlightAlert)}</span></>}
+            </div>
             {highlightAlert.recommendation && (
               <div className="mt-2 flex items-start gap-2 text-sm text-foreground/80 bg-background/60 rounded-lg p-3 border border-border/60">
                 <Lightbulb className="h-4 w-4 text-accent shrink-0 mt-0.5" />
@@ -155,7 +150,7 @@ const Dashboard = () => {
             )}
           </div>
           <button
-            onClick={() => setHighlightAlert(null)}
+            onClick={() => setDismissedAlertId(highlightAlert.id)}
             className="self-end text-xs text-muted-foreground hover:text-foreground sm:self-start sm:shrink-0"
             aria-label="Dismiss"
           >
@@ -174,8 +169,8 @@ const Dashboard = () => {
                 <Waves className="h-4 w-4" /> Overall Pond Condition
               </div>
               <div className="flex items-baseline gap-4">
-                <div className="text-5xl font-semibold capitalize">{dashboardStatus}</div>
-                <Badge className={statusColor + " border-0"}>{sensorOffline ? "No live data" : `${evaluation.score}/100`}</Badge>
+                <div className="font-coolvetica text-5xl font-semibold capitalize">{dashboardStatus}</div>
+                <Badge className={statusColor + " border-0"}>{sensorOffline ? "No live data" : <span className="font-bitcount-grid-single">{evaluation.score}/100</span>}</Badge>
               </div>
               <p className="mt-3 text-white/70 max-w-md">
                 {sensorOffline
@@ -187,7 +182,7 @@ const Dashboard = () => {
           </div>
           <div className="grid grid-cols-2 gap-3 bg-card p-4 sm:p-6">
             <MiniStat icon={Fish} label="Growth records" value={growthCount.toString()} />
-            <MiniStat icon={AlertCircle} label="Open alerts" value={(alerts.length + (sensorOffline ? 1 : 0)).toString()} accent={alerts.length === 0 && !sensorOffline} />
+            <MiniStat icon={AlertCircle} label="Active alerts" value={activeAlertCount.toString()} accent={activeAlertCount === 0 && !sensorOffline} />
             <MiniStat icon={TrendingUp} label="Ponds" value={pondCount.toString()} />
           </div>
         </div>
@@ -208,8 +203,8 @@ const Dashboard = () => {
                 : latest && <span className={`ripple-dot ${s.ok ? "bg-success" : "bg-destructive"}`} />}
             </div>
             <div className="text-xs uppercase tracking-wider text-muted-foreground">{s.label}</div>
-            <div className="font-mono text-3xl mt-1">
-              {s.val != null ? Number(s.val).toFixed(2) : "—"}
+            <div className="mt-1 text-3xl font-bitcount-grid-single">
+              <span>{s.val != null ? Number(s.val).toFixed(2) : "—"}</span>
               <span className="text-sm text-muted-foreground ml-1">{s.unit}</span>
             </div>
           </div>
@@ -247,7 +242,7 @@ const Dashboard = () => {
 
         <Card className="p-6">
           <h3 className="font-semibold mb-1">Alerts & Recommendations</h3>
-          <p className="text-xs text-muted-foreground mb-4">Active issues that need attention</p>
+          <p className="text-xs text-muted-foreground mb-4">Current incidents across the pond</p>
           {alerts.length === 0 && !sensorOffline ? (
             <EmptyState icon={AlertCircle} title="All clear" description="No active alerts at this time." />
           ) : (
@@ -255,7 +250,7 @@ const Dashboard = () => {
               {sensorOffline && (
                 <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3">
                   <div className="flex items-center justify-between gap-2">
-                    <Badge variant="destructive" className="text-[10px] uppercase">Offline</Badge>
+                    <Badge variant="destructive" className="font-coolvetica text-[10px] uppercase">Offline</Badge>
                     <span className="text-[10px] text-muted-foreground">Sensor connection</span>
                   </div>
                   <div className="mt-2 text-sm font-medium">No recent water parameter readings.</div>
@@ -267,10 +262,14 @@ const Dashboard = () => {
               {alerts.map(a => (
                 <div key={a.id} className="p-3 rounded-lg border border-border bg-secondary/30">
                   <div className="flex items-center justify-between">
-                    <Badge variant="outline" className="text-[10px] uppercase">{a.severity}</Badge>
-                    <span className="text-[10px] text-muted-foreground">{format(new Date(a.created_at), "HH:mm")}</span>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <Badge variant="outline" className="font-coolvetica text-[10px] uppercase">{a.severity}</Badge>
+                      <Badge variant="outline" className="font-coolvetica text-[10px]">{getAlertStatusLabel(a)}</Badge>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground">{format(new Date(a.last_detected_at ?? a.created_at), "MMM d · HH:mm")}</span>
                   </div>
                   <div className="text-sm font-medium mt-2">{a.message}</div>
+                  {formatAlertReading(a) && <div className="mt-1 text-xs text-muted-foreground">Latest value: <span className="font-bitcount-grid-single">{formatAlertReading(a)}</span></div>}
                   {a.recommendation && <div className="text-xs text-muted-foreground mt-1">→ {a.recommendation}</div>}
                 </div>
               ))}
@@ -292,7 +291,7 @@ type MiniStatProps = {
 const MiniStat = ({ icon: Icon, label, value, accent }: MiniStatProps) => (
   <div className="rounded-xl p-3 bg-secondary/40">
     <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground"><Icon className="h-3 w-3" />{label}</div>
-    <div className={`mt-1.5 font-semibold ${accent ? "text-success" : ""}`}>{value}</div>
+    <div className={`mt-1.5 font-bitcount-grid-single font-semibold ${accent ? "text-success" : ""}`}>{value}</div>
   </div>
 );
 

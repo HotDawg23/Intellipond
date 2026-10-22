@@ -5,10 +5,17 @@ export type Settings = {
   ph_min: number; ph_max: number;
   temp_min: number; temp_max: number;
   turbidity_max: number;
+  critical_do_high: number | null;
+  critical_ph_low: number | null;
+  critical_ph_high: number | null;
+  critical_temp_low: number | null;
+  critical_turbidity_high: number | null;
 };
 
 export const DEFAULT_SETTINGS: Settings = {
   do_min: 4, do_max: 9, ph_min: 6.5, ph_max: 8.5, temp_min: 26, temp_max: 32, turbidity_max: 80,
+  critical_do_high: null, critical_ph_low: null, critical_ph_high: null,
+  critical_temp_low: null, critical_turbidity_high: null,
 };
 
 export async function getSettings(): Promise<Settings> {
