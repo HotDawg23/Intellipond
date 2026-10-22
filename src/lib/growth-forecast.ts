@@ -23,6 +23,50 @@ export type GrowthReferenceModel = {
 
 export type GrowthEstimate = { expected: number; low: number; high: number };
 
+export type GrowthObservation = {
+  fish_batch_id: string | null;
+  recorded_at: string;
+  avg_weight_g: number | null;
+  avg_length_cm: number | null;
+};
+
+export type GrowthBaseline = {
+  value: number;
+  date: string;
+  source: "sample" | "stocking";
+};
+
+const dateAtUtc = (date: string) => {
+  const [year, month, day] = date.slice(0, 10).split("-").map(Number);
+  return Date.UTC(year, month - 1, day);
+};
+
+export function latestGrowthBaseline(
+  records: GrowthObservation[],
+  batchId: string,
+  metric: "avg_weight_g" | "avg_length_cm",
+  stockingDate: string,
+  startingValue: number | null,
+): GrowthBaseline | null {
+  const latest = records
+    .filter(record => record.fish_batch_id === batchId && record[metric] != null)
+    .sort((a, b) => b.recorded_at.localeCompare(a.recorded_at))[0];
+  if (latest?.[metric] != null) {
+    return { value: latest[metric]!, date: latest.recorded_at.slice(0, 10), source: "sample" };
+  }
+  return startingValue != null
+    ? { value: startingValue, date: stockingDate, source: "stocking" }
+    : null;
+}
+
+export function growthForecastWindow(baseline: GrowthBaseline | null, today: Date, horizonDays: number) {
+  if (!baseline) return { ageDays: null, targetDate: null, isFresh: false };
+  const todayUtc = Date.UTC(today.getFullYear(), today.getMonth(), today.getDate());
+  const ageDays = Math.floor((todayUtc - dateAtUtc(baseline.date)) / 86_400_000);
+  const targetDate = new Date(dateAtUtc(baseline.date) + horizonDays * 86_400_000).toISOString().slice(0, 10);
+  return { ageDays, targetDate, isFresh: ageDays >= 0 && ageDays <= horizonDays };
+}
+
 export function estimateGrowth(
   currentValue: number | null | undefined,
   metricModel: GrowthMetricModel,

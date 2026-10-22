@@ -1,17 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { addDays, format } from "date-fns";
-import { AlertTriangle, ArrowUpRight, BadgeCheck, Fish, Ruler, Weight } from "lucide-react";
+import { format } from "date-fns";
+import { ArrowUpRight, Fish, Ruler, Weight } from "lucide-react";
+import { Line, LineChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { AppShell } from "@/components/AppShell";
 import { EmptyState, PageHeader } from "@/components/Common";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { daysSinceStocking, estimateGrowth, type GrowthReferenceModel } from "@/lib/growth-forecast";
+import {
+  estimateGrowth, growthForecastWindow, latestGrowthBaseline,
+  type GrowthBaseline, type GrowthMetricModel, type GrowthObservation, type GrowthReferenceModel,
+} from "@/lib/growth-forecast";
 import { formatStockingDensity } from "@/lib/stocking-density";
 import { useAuth } from "@/contexts/AuthContext";
-import { Line, LineChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 type FishBatch = {
   id: string;
@@ -24,21 +28,20 @@ type FishBatch = {
   pond_profiles?: { name: string; area_sqm: number | null } | null;
 };
 
-type GrowthRecord = {
+type GrowthRecord = GrowthObservation & {
   id: string;
-  fish_batch_id: string | null;
   pond_id: string | null;
   age_days: number | null;
-  avg_weight_g: number | null;
-  avg_length_cm: number | null;
-  recorded_at: string;
   growth_status: string | null;
 };
+
+const formatDate = (date: string) => format(new Date(`${date.slice(0, 10)}T00:00:00`), "MMM d, yyyy");
 
 const Growth = () => {
   const { role } = useAuth();
   const [records, setRecords] = useState<GrowthRecord[]>([]);
   const [batches, setBatches] = useState<FishBatch[]>([]);
+  const [selectedBatchId, setSelectedBatchId] = useState("");
   const [model, setModel] = useState<GrowthReferenceModel | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -56,7 +59,7 @@ const Growth = () => {
       fetch(`${import.meta.env.BASE_URL}growth-model.json`).then(async response => {
         if (!response.ok) throw new Error("Growth reference model could not be loaded.");
         return response.json() as Promise<GrowthReferenceModel>;
-      }),
+      }).catch(() => null),
     ]).then(([growthResult, batchResult, loadedModel]) => {
       if (!mounted) return;
       if (growthResult.error) throw growthResult.error;
@@ -64,6 +67,7 @@ const Growth = () => {
       setRecords(growthResult.data ?? []);
       setBatches((batchResult.data ?? []) as unknown as FishBatch[]);
       setModel(loadedModel);
+      if (!loadedModel) setError("Growth reference model could not be loaded. Recorded measurements are still available.");
     }).catch(loadError => {
       if (mounted) setError(loadError?.message ?? "Could not load growth forecasts.");
     }).finally(() => {
@@ -72,174 +76,116 @@ const Growth = () => {
     return () => { mounted = false; };
   }, []);
 
-  const forecasts = useMemo(() => {
-    if (!model) return [];
-    return batches.map(batch => {
-      const batchRecords = records
-        .filter(record => record.fish_batch_id === batch.id)
-        .sort((left, right) => right.recorded_at.localeCompare(left.recorded_at));
-      const latest = batchRecords[0];
-      const currentWeight = latest?.avg_weight_g ?? batch.initial_weight_g;
-      const currentLength = latest?.avg_length_cm ?? batch.initial_length_cm;
-      const horizon = model.target_horizon_days;
-      const forecastDate = addDays(new Date(), horizon);
-      return {
-        batch,
-        latest,
-        currentWeight,
-        currentLength,
-        currentAge: latest?.age_days ?? daysSinceStocking(batch.stocking_date),
-        forecastDate,
-        weight: estimateGrowth(currentWeight, model.outputs.avg_weight_g, horizon),
-        length: estimateGrowth(currentLength, model.outputs.avg_length_cm, horizon),
-      };
-    });
-  }, [batches, records, model]);
-
-  const chartRecords = records.map(record => ({
-    ...record,
-    dateLabel: format(new Date(record.recorded_at), "MMM d"),
-  }));
+  const selectedBatch = batches.find(batch => batch.id === selectedBatchId) ?? batches[0];
+  const batchRecords = useMemo(() => records
+    .filter(record => record.fish_batch_id === selectedBatch?.id)
+    .sort((a, b) => a.recorded_at.localeCompare(b.recorded_at)), [records, selectedBatch?.id]);
+  const weightBaseline = selectedBatch && latestGrowthBaseline(batchRecords, selectedBatch.id, "avg_weight_g", selectedBatch.stocking_date, selectedBatch.initial_weight_g);
+  const lengthBaseline = selectedBatch && latestGrowthBaseline(batchRecords, selectedBatch.id, "avg_length_cm", selectedBatch.stocking_date, selectedBatch.initial_length_cm);
+  const density = selectedBatch && formatStockingDensity(selectedBatch.stocked_fish_count, selectedBatch.pond_profiles?.area_sqm);
   const validatedOnBfar = model?.seven_day_validation.status === "validated";
 
   return (
     <AppShell>
-      <PageHeader title="Growth Monitoring" subtitle="Track Bangus measurements and view a seven-day growth estimate." />
-
-      {error && (
-        <Card className="mb-5 border-destructive/40 p-4 text-sm text-destructive" role="alert">{error}</Card>
-      )}
-
+      <PageHeader title="Growth Monitoring" subtitle="Follow measured Bangus growth and a seven-day research estimate." />
+      {error && <Card className="mb-5 border-destructive/40 p-4 text-sm text-destructive" role="alert">{error}</Card>}
       {loading ? (
         <Card className="p-6 text-sm text-muted-foreground" role="status">Loading growth records…</Card>
       ) : batches.length === 0 ? (
-        <Card className="mb-6 p-6">
-          <EmptyState
-            icon={Fish}
-            title="Register the current fish batch to see a forecast."
-            description="The estimate needs the stocking date and starting average weight or length. An administrator can add those details in Growth Records."
-          />
+        <Card className="p-6">
+          <EmptyState icon={Fish} title="No active fish batch yet" description="An administrator can add a batch and its starting measurement in Growth Records." />
           {role === "admin" && <div className="mt-4 text-center"><Button asChild><Link to="/admin/growth">Set up a fish batch</Link></Button></div>}
         </Card>
-      ) : (
-        <section aria-labelledby="forecast-heading" className="mb-8 space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 id="forecast-heading" className="text-xl font-semibold">Seven-day growth estimate</h2>
-              <p className="mt-1 text-sm text-muted-foreground">Based on the latest measurement for each active batch.</p>
+      ) : selectedBatch && (
+        <div className="space-y-5">
+          <section aria-labelledby="batch-heading" className="flex flex-wrap items-end justify-between gap-4">
+            <div><h2 id="batch-heading" className="text-xl font-semibold">Current batch</h2><p className="mt-1 text-sm text-muted-foreground">Choose a batch to see only its own measurements and estimate.</p></div>
+            <div className="w-full sm:w-72">
+              <label htmlFor="growth-batch" className="mb-1 block text-sm font-medium">Fish batch</label>
+              <Select value={selectedBatch.id} onValueChange={setSelectedBatchId}>
+                <SelectTrigger id="growth-batch"><SelectValue /></SelectTrigger>
+                <SelectContent>{batches.map(batch => <SelectItem key={batch.id} value={batch.id}>{batch.batch_name} · {batch.pond_profiles?.name ?? "Pond"}</SelectItem>)}</SelectContent>
+              </Select>
             </div>
-            <Badge variant="outline" className={validatedOnBfar
-              ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-              : "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300"}>
-              {validatedOnBfar ? <BadgeCheck className="mr-1.5 h-3.5 w-3.5" /> : <AlertTriangle className="mr-1.5 h-3.5 w-3.5" />}
-              {validatedOnBfar ? "Checked on held-out BFAR batches" : "Research estimate"}
-            </Badge>
-          </div>
-
-          {forecasts.map(({ batch, latest, currentWeight, currentLength, currentAge, forecastDate, weight, length }) => (
-            <Card key={batch.id} className="overflow-hidden p-5 sm:p-6">
-              <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border pb-4">
-                <div>
-                  <h3 className="font-semibold">{batch.batch_name}</h3>
-                  <p className="text-sm text-muted-foreground">{batch.pond_profiles?.name ?? "Pond"} · stocked {format(new Date(`${batch.stocking_date}T00:00:00`), "MMM d, yyyy")}</p>
-                  <p className="mt-1 text-sm font-medium">
-                    {batch.stocked_fish_count != null
-                      ? `${batch.stocked_fish_count.toLocaleString()} fish stocked`
-                      : "Fish count not recorded"}
-                    {" | "}
-                    {formatStockingDensity(batch.stocked_fish_count, batch.pond_profiles?.area_sqm)
-                      ? `Initial density: ${formatStockingDensity(batch.stocked_fish_count, batch.pond_profiles?.area_sqm)}`
-                      : batch.stocked_fish_count == null
-                        ? "Density unavailable until a fish count is recorded"
-                        : "Pond area required to calculate density"}
-                  </p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">Initial density uses the pond's recorded area; it does not represent surviving fish.</p>
-                </div>
-                <div className="text-right text-sm">
-                  <div className="font-medium">Forecast for {format(forecastDate, "MMM d, yyyy")}</div>
-                  <div className="text-muted-foreground">Day {currentAge} → day {currentAge + (model?.target_horizon_days ?? 7)}</div>
-                </div>
-              </div>
-
-              <div className="grid gap-4 py-5 sm:grid-cols-2">
-                <ForecastMetric icon={Weight} label="Average weight" current={currentWeight} estimate={weight} unit="g" />
-                <ForecastMetric icon={Ruler} label="Average length" current={currentLength} estimate={length} unit="cm" />
-              </div>
-
-              <div className="rounded-xl bg-muted/40 p-4 text-sm text-muted-foreground">
-                The expected value comes from published milkfish pond data and any records supplied for training. The range shows observed growth-rate spread; it is not a statistical confidence interval. {validatedOnBfar
-                  ? "The model passed the held-out BFAR comparison for both weight and length."
-                  : ""}
-                {latest && <span className="mt-1 block">Latest pond sample: {format(new Date(latest.recorded_at), "MMM d, yyyy")}.</span>}
-              </div>
-              {model?.sources[0] && (
-                <a className="mt-3 inline-flex items-center gap-1 text-sm text-primary underline-offset-4 hover:underline" href={model.sources[0].url} target="_blank" rel="noreferrer">
-                  Source: {model.sources[0].publisher} {model.sources[0].year} <ArrowUpRight className="h-3.5 w-3.5" />
-                </a>
-              )}
-            </Card>
-          ))}
-        </section>
-      )}
-
-      {records.length > 0 && (
-        <>
-          <div className="mb-5 grid gap-4 md:grid-cols-4">
-            <Stat label="Latest weight" value={`${records[records.length - 1].avg_weight_g ?? "—"} g`} />
-            <Stat label="Latest length" value={`${records[records.length - 1].avg_length_cm ?? "—"} cm`} />
-            <Stat label="Age at last sample" value={`${records[records.length - 1].age_days ?? "—"} days`} />
-            <Stat label="Growth status" value={records[records.length - 1].growth_status ?? "—"} />
-          </div>
-          <Card className="p-5 sm:p-6">
-            <h2 className="mb-4 font-semibold">Recorded growth measurements</h2>
-            <div className="h-80 min-h-[20rem]">
-              <ResponsiveContainer>
-                <LineChart data={chartRecords}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="dateLabel" stroke="hsl(var(--muted-foreground))" fontSize={11} />
-                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} />
-                  <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
-                  <Line type="monotone" dataKey="avg_weight_g" stroke="hsl(var(--accent))" strokeWidth={2} name="Weight (g)" isAnimationActive={false} />
-                  <Line type="monotone" dataKey="avg_length_cm" stroke="hsl(var(--success))" strokeWidth={2} name="Length (cm)" isAnimationActive={false} />
-                </LineChart>
-              </ResponsiveContainer>
+          </section>
+          <Card className="overflow-hidden p-5 sm:p-6">
+            <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border pb-4">
+              <div><h3 className="text-lg font-semibold">{selectedBatch.batch_name}</h3><p className="text-sm text-muted-foreground">{selectedBatch.pond_profiles?.name ?? "Pond"} · stocked {formatDate(selectedBatch.stocking_date)}</p></div>
+              <Badge variant="outline" className={validatedOnBfar ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300"}>
+                {!model ? "Estimate unavailable" : validatedOnBfar ? "Checked on BFAR batches" : "Research estimate"}
+              </Badge>
             </div>
+            <div className="grid gap-4 py-5 md:grid-cols-2">
+              <GrowthMetric label="Average weight" unit="g" icon={Weight} baseline={weightBaseline ?? null} metricModel={model?.outputs.avg_weight_g ?? null} horizonDays={model?.target_horizon_days ?? 7} />
+              <GrowthMetric label="Average length" unit="cm" icon={Ruler} baseline={lengthBaseline ?? null} metricModel={model?.outputs.avg_length_cm ?? null} horizonDays={model?.target_horizon_days ?? 7} />
+            </div>
+            <details className="rounded-xl bg-muted/40 p-4 text-sm">
+              <summary className="cursor-pointer font-medium">About this estimate and batch</summary>
+              <div className="mt-3 space-y-2 text-muted-foreground">
+                <p>This estimate starts from the latest recorded value for each measure. Its reference range shows spread in observed growth rates, not a confidence interval or a promise of accuracy.</p>
+                <p>{validatedOnBfar ? "The model passed the held-out BFAR comparison for weight and length." : "Seven-day accuracy has not been validated on BFAR batches."}</p>
+                <p>{selectedBatch.stocked_fish_count?.toLocaleString() ?? "No"} fish recorded at stocking · initial density {density ?? "unavailable"}. Density uses the pond area and stocked count, not surviving fish.</p>
+                {model?.sources[0] && <a className="inline-flex items-center gap-1 text-primary underline-offset-4 hover:underline" href={model.sources[0].url} target="_blank" rel="noreferrer">Source: {model.sources[0].publisher} {model.sources[0].year}<ArrowUpRight className="h-3.5 w-3.5" /></a>}
+              </div>
+            </details>
           </Card>
-        </>
+          <section aria-labelledby="growth-history-heading">
+            <div className="mb-3"><h2 id="growth-history-heading" className="text-lg font-semibold">Measured growth</h2><p className="text-sm text-muted-foreground">Actual samples from {selectedBatch.batch_name}; each chart has its own unit.</p></div>
+            {batchRecords.length === 0 ? <Card className="p-5 text-sm text-muted-foreground">No follow-up measurements yet. The starting measurements above are from stocking.</Card> : (
+              <div className="grid gap-4 lg:grid-cols-2">
+                <HistoryChart title="Average weight" unit="g" dataKey="avg_weight_g" records={batchRecords} />
+                <HistoryChart title="Average length" unit="cm" dataKey="avg_length_cm" records={batchRecords} />
+              </div>
+            )}
+          </section>
+        </div>
       )}
     </AppShell>
   );
 };
 
-const ForecastMetric = ({
-  icon: Icon,
-  label,
-  current,
-  estimate,
-  unit,
-}: {
-  icon: typeof Weight;
-  label: string;
-  current: number | null;
-  estimate: { expected: number; low: number; high: number } | null;
-  unit: string;
-}) => (
-  <div className="rounded-xl border border-border p-4">
-    <div className="flex items-center gap-2 text-sm text-muted-foreground"><Icon className="h-4 w-4 text-primary" />{label}</div>
-    {estimate ? (
-      <>
-        <div className="mt-3 text-2xl font-semibold">{estimate.expected.toFixed(2)} <span className="text-base font-normal">{unit}</span></div>
-        <div className="mt-1 text-sm text-muted-foreground">Reference range: {estimate.low.toFixed(2)}–{estimate.high.toFixed(2)} {unit}</div>
-        <div className="mt-1 text-xs text-muted-foreground">Current baseline: {Number(current).toFixed(2)} {unit}</div>
-      </>
-    ) : (
-      <p className="mt-3 text-sm text-muted-foreground">Add a starting or sampled {label.toLowerCase()} to forecast this measure.</p>
-    )}
-  </div>
-);
+function GrowthMetric({ label, unit, icon: Icon, baseline, metricModel, horizonDays }: {
+  label: string; unit: string; icon: typeof Weight; baseline: GrowthBaseline | null; metricModel: GrowthMetricModel | null; horizonDays: number;
+}) {
+  const window = growthForecastWindow(baseline, new Date(), horizonDays);
+  const estimate = window.isFresh && metricModel ? estimateGrowth(baseline?.value, metricModel, horizonDays) : null;
+  return <div className="rounded-xl border border-border bg-card p-4 sm:p-5">
+    <div className="flex items-center gap-2 text-sm font-medium"><Icon className="h-4 w-4 text-primary" />{label}</div>
+    {baseline ? <>
+      <div className="mt-4 flex flex-wrap items-end justify-between gap-3">
+        <div><p className="text-xs text-muted-foreground">Last actual value</p><p className="text-2xl font-semibold tabular-nums">{baseline.value.toFixed(2)} <span className="text-base font-normal">{unit}</span></p></div>
+        <p className="text-xs text-muted-foreground">{baseline.source === "sample" ? "Sampled" : "At stocking"} {formatDate(baseline.date)}</p>
+      </div>
+      {estimate && window.targetDate ? <div className="mt-4 rounded-lg bg-primary/5 p-3">
+        <p className="text-xs font-medium text-muted-foreground">Estimate for {formatDate(window.targetDate)}</p>
+        <p className="mt-1 text-xl font-semibold tabular-nums">{estimate.expected.toFixed(2)} <span className="text-sm font-normal">{unit}</span></p>
+        <p className="mt-1 text-xs text-muted-foreground">Reference range {estimate.low.toFixed(2)}–{estimate.high.toFixed(2)} {unit}</p>
+      </div> : <p className="mt-4 rounded-lg bg-muted/60 p-3 text-sm text-muted-foreground" role="status">
+        {!metricModel ? "Estimate unavailable; the recorded value is still shown." : window.ageDays != null && window.ageDays > horizonDays ? "New measurement needed for a forward estimate." : "Check the measurement date before forecasting."}
+      </p>}
+    </> : <p className="mt-4 text-sm text-muted-foreground">Add a starting or sampled {label.toLowerCase()} to see an estimate.</p>}
+  </div>;
+}
 
-const Stat = ({ label, value }: { label: string; value: string }) => (
-  <div className="stat-tile"><div className="text-xs uppercase tracking-wider text-muted-foreground">{label}</div><div className="mt-1 font-mono text-2xl">{value}</div></div>
-);
+function HistoryChart({ title, unit, dataKey, records }: { title: string; unit: string; dataKey: "avg_weight_g" | "avg_length_cm"; records: GrowthRecord[] }) {
+  const data = records.filter(record => record[dataKey] != null).map(record => ({ date: formatDate(record.recorded_at), value: record[dataKey] }));
+  return <Card className="p-4 sm:p-5">
+    <h3 className="font-semibold">{title} ({unit})</h3>
+    {data.length ? <>
+      <div className="mt-4 h-64" role="img" aria-label={`${title} trend in ${unit} for this batch`}>
+        <ResponsiveContainer width="100%" height="100%"><LineChart data={data} margin={{ top: 8, right: 14, bottom: 0, left: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+        <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={11} />
+        <YAxis width={48} stroke="hsl(var(--muted-foreground))" fontSize={11} unit={unit} />
+        <Tooltip formatter={(value: number) => [`${value} ${unit}`, title]} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
+        <Line type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2} dot isAnimationActive={false} />
+        </LineChart></ResponsiveContainer>
+      </div>
+      <ul className="sr-only" aria-label={`${title} sample values`}>
+        {data.map((sample, index) => <li key={`${sample.date}-${index}`}>{sample.date}: {sample.value} {unit}</li>)}
+      </ul>
+    </> : <p className="mt-4 text-sm text-muted-foreground">No {title.toLowerCase()} samples for this batch yet.</p>}
+  </Card>;
+}
 
 export default Growth;

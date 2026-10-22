@@ -1,153 +1,73 @@
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { Bell } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
 import AlertIncidentCard from "@/components/AlertIncidentCard";
 import AlertListFilters from "@/components/AlertListFilters";
+import AlertPagination from "@/components/AlertPagination";
 import { EmptyState, PageHeader } from "@/components/Common";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { useAlertHistory } from "@/hooks/useAlertHistory";
 import { supabase } from "@/integrations/supabase/client";
-import type { AlertRecord } from "@/lib/alerts";
-import {
-  isAlertWithinDateRange,
-  matchesAlertStatus,
-  type AlertDateRangeFilter,
-  type AlertSeverityFilter,
-  type AlertStatusFilter,
-} from "@/lib/alertFilters";
-
-type AlertWithPond = AlertRecord & { pond_profiles: { name: string } | null };
 
 const AlertHistory = () => {
-  const [alerts, setAlerts] = useState<AlertWithPond[]>([]);
-  const [loading, setLoading] = useState(true);
+  const history = useAlertHistory(true);
   const [acknowledgingId, setAcknowledgingId] = useState<string | null>(null);
-  const [severityFilter, setSeverityFilter] = useState<AlertSeverityFilter>("all");
-  const [dateRange, setDateRange] = useState<AlertDateRangeFilter>("all");
-  const [statusFilter, setStatusFilter] = useState<AlertStatusFilter>("all");
-
-  const load = useCallback(async () => {
-    const { data, error } = await supabase
-      .from("alerts")
-      .select("*, pond_profiles(name)")
-      .order("created_at", { ascending: false });
-
-    if (error) toast.error("Could not load alert history", { description: error.message });
-    else setAlerts((data ?? []) as unknown as AlertWithPond[]);
-    setLoading(false);
-  }, []);
-
-  useEffect(() => {
-    void load();
-    const channel = supabase
-      .channel("admin-alert-history")
-      .on("postgres_changes", { event: "*", schema: "public", table: "alerts" }, () => {
-        void load();
-      })
-      .subscribe();
-
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [load]);
 
   const acknowledge = async (id: string) => {
     setAcknowledgingId(id);
-    const { data, error } = await supabase
-      .from("alerts")
-      .update({ acknowledged: true })
-      .eq("id", id)
-      .eq("status", "active")
-      .eq("acknowledged", false)
-      .select("*")
-      .maybeSingle();
+    const { data, error } = await supabase.from("alerts")
+      .update({ acknowledged: true }).eq("id", id).eq("status", "active")
+      .eq("acknowledged", false).select("id").maybeSingle();
     setAcknowledgingId(null);
-
     if (error) return toast.error("Could not acknowledge alert", { description: error.message });
     if (!data) return toast.info("This incident was already acknowledged or is no longer active.");
-
-    setAlerts(current => current.map(alert => alert.id === id ? { ...alert, ...data } : alert));
+    await history.load();
     toast.success("Alert acknowledged");
-  };
-
-  const scopedAlerts = alerts.filter(alert =>
-    isAlertWithinDateRange(alert.created_at, dateRange) && matchesAlertStatus(alert, statusFilter)
-  );
-  const filteredAlerts = scopedAlerts.filter(
-    alert => severityFilter === "all" || alert.severity === severityFilter
-  );
-
-  const clearFilters = () => {
-    setSeverityFilter("all");
-    setDateRange("all");
-    setStatusFilter("all");
   };
 
   return (
     <AppShell admin>
-      <PageHeader title="Alert History" subtitle="Review active incidents and archived alert records." />
-
-      {loading ? (
-        <Card className="p-6 text-sm text-muted-foreground" role="status">Loading alert history...</Card>
-      ) : alerts.length === 0 ? (
-        <Card className="p-6">
-          <EmptyState icon={Bell} title="No alerts recorded." />
+      <PageHeader title="Alert History" subtitle="Review recent incidents and older retained alerts." />
+      <div className="space-y-5">
+        <Card className="border-border/70 bg-gradient-to-br from-card to-muted/30 p-4 shadow-sm sm:p-5">
+          <AlertListFilters ageView={history.ageView} onAgeViewChange={history.changeAgeView}
+            severity={history.severity} onSeverityChange={history.changeSeverity}
+            dateRange={history.dateRange} onDateRangeChange={history.changeDateRange}
+            status={history.status} onStatusChange={history.changeStatus} />
         </Card>
-      ) : (
-        <div className="space-y-5">
-          <Card className="border-border/70 bg-gradient-to-br from-card to-muted/30 p-4 shadow-sm sm:p-5">
-            <AlertListFilters
-              severity={severityFilter}
-              onSeverityChange={setSeverityFilter}
-              dateRange={dateRange}
-              onDateRangeChange={setDateRange}
-              status={statusFilter}
-              onStatusChange={setStatusFilter}
-            />
+        {history.loading ? (
+          <Card className="p-6 text-sm text-muted-foreground" role="status">Loading alert history...</Card>
+        ) : history.error ? (
+          <Card className="p-6 text-sm text-destructive" role="alert">Could not load alerts: {history.error} <Button variant="outline" className="ml-3" onClick={() => void history.load()}>Retry</Button></Card>
+        ) : history.alerts.length === 0 ? (
+          <Card className="p-6">
+            <EmptyState icon={Bell} title={history.ageView === "older" ? "No older alerts match." : "No recent alerts match."}
+              description={history.ageView === "older" ? "Try another status or severity, or wait for resolved alerts to reach 90 days." : "Try another filter or check back when incidents are recorded."} />
+            <div className="mt-4 flex justify-center"><Button variant="outline" onClick={history.clearFilters}>Clear filters</Button></div>
           </Card>
-
-          {filteredAlerts.length === 0 ? (
-            <Card className="p-6">
-              <EmptyState
-                icon={Bell}
-                title="No alerts match these filters."
-                description="Try a different severity, date range, or status."
-              />
-              <div className="mt-4 flex justify-center">
-                <Button variant="outline" onClick={clearFilters}>Clear filters</Button>
+        ) : (
+          <section aria-labelledby="admin-alert-timeline-title" className="space-y-3">
+            <div className="flex items-center justify-between px-1">
+              <div>
+                <h2 id="admin-alert-timeline-title" className="text-sm font-semibold tracking-wide">{history.ageView === "older" ? "Older alerts" : "Recent alerts"}</h2>
+                <p className="mt-0.5 text-xs text-muted-foreground">Newest incidents appear first.</p>
               </div>
-            </Card>
-          ) : (
-            <section aria-labelledby="admin-alert-timeline-title" className="space-y-3">
-              <div className="flex items-center justify-between px-1">
-                <div>
-                  <h2 id="admin-alert-timeline-title" className="text-sm font-semibold tracking-wide">
-                    Incident history
-                  </h2>
-                  <p className="mt-0.5 text-xs text-muted-foreground">Newest incidents appear first.</p>
-                </div>
-                <span className="rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground">
-                  {filteredAlerts.length} {filteredAlerts.length === 1 ? "incident" : "incidents"}
-                </span>
-              </div>
-
-              <div className="space-y-3">
-                {filteredAlerts.map(alert => (
-                  <AlertIncidentCard
-                    key={alert.id}
-                    alert={alert}
-                    pondName={alert.pond_profiles?.name ?? "Pond unavailable"}
-                    canAcknowledge
-                    acknowledging={acknowledgingId === alert.id}
-                    onAcknowledge={() => void acknowledge(alert.id)}
-                  />
-                ))}
-              </div>
-            </section>
-          )}
-        </div>
-      )}
+              <span className="rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground">
+                {history.total} {history.total === 1 ? "incident" : "incidents"}
+              </span>
+            </div>
+            {history.alerts.map(alert => (
+              <AlertIncidentCard key={alert.id} alert={alert} pondName={alert.pond_profiles?.name ?? "Pond unavailable"}
+                showSeverityAccent={false}
+                canAcknowledge={history.ageView === "recent"} acknowledging={acknowledgingId === alert.id}
+                onAcknowledge={() => void acknowledge(alert.id)} />
+            ))}
+            <AlertPagination page={history.page} total={history.total} onPageChange={history.setPage} />
+          </section>
+        )}
+      </div>
     </AppShell>
   );
 };

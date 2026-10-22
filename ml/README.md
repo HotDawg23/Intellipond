@@ -15,6 +15,21 @@ seven-day predictions at BFAR. The trainer reports validation on held-out
 long-interval transitions separately and never treats that as seven-day
 validation.
 
+## Public data review (October 2026)
+
+| Source | What is available | Decision |
+| --- | --- | --- |
+| [WorldFish Sulu et al. 2016, Table 10](https://digitalarchive.worldfishcenter.org/items/d63bc10f-eec1-4053-86c9-08106a92c55e) | Average weight and length by stocking day for three identifiable pond cohorts; CC BY 4.0. The included CSV converts length from mm to cm. | Retain as the current training source. |
+| [FAO Milkfish Culture and Pond Management, Table 1](https://www.fao.org/4/H9727E/H9727E00.htm) | Weekly weight and length for milkfish fry in four-week laboratory pools, rather than pond grow-out cohorts. | Exclude from this pond model despite the useful sampling interval. |
+| [SEAFDEC/JIRCAS marine-pen study](https://repository.seafdec.org.ph/bitstream/handle/10862/6335/6335-IMTA-Proceedings2022.pdf) | Reports monthly weight and length sampling in marine pens, but provides fitted-model statistics rather than reusable per-pen measurement rows; reuse terms for those rows are not established. | Exclude unless underlying measurements and permission can be obtained. |
+
+Before adding another online dataset, check its original source and document
+the license, pond setting, life stage, cohort identity, sampling dates or days,
+units, and conversions. Only add measured rows from comparable milkfish pond
+cohorts. Do not infer weekly points from endpoints, treat plotted values as
+exact, or merge different cohorts. More rows alone do not establish better
+seven-day accuracy.
+
 ## Train
 
 The trainer uses Python's standard library. To include BFAR data, prepare a CSV
@@ -22,9 +37,20 @@ with the same columns as `data/worldfish_milkfish_growth.csv`, use a unique
 `source_cohort` beginning with `BFAR-` for each pond stocking cycle, and pass it
 with `--bfar-csv`. To evaluate the seven-day forecast, the file must include exact
 seven-day measurement pairs from at least three BFAR cohorts. Validation passes
-only when the held-out model beats the recent-rate baseline for both weight and
-length.
+only when the held-out model beats the recent-rate baseline on the *same*
+eligible seven-day pairs for both weight and length. A cohort needs an earlier
+interval before a recent-rate baseline is available.
 Keep BFAR files outside version control unless their owner has authorized sharing.
+
+The generated version includes the algorithm version and a digest of the
+training rows. The same rows and algorithm produce the same version; change
+`MODEL_ALGORITHM_VERSION` when changing the growth-rate calculation. Long-interval
+evaluation compares the model with unchanged-value predictions over all
+eligible intervals; its recent-rate comparison uses paired intervals only.
+When comparable public data becomes available, compare the old and proposed
+models on the same held-out cohorts before replacing the published artifact.
+Without supported improvement, keep the current reference model. Its
+growth-rate spread is not a confidence interval or confidence percentage.
 
 ```sh
 python ml/train_growth_model.py

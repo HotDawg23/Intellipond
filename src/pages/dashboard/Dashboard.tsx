@@ -77,18 +77,18 @@ const Dashboard = () => {
 
   const statusColor = dashboardStatus === "healthy" ? "bg-success text-success-foreground"
     : dashboardStatus === "watch" ? "bg-warning text-warning-foreground"
-    : dashboardStatus === "critical" || dashboardStatus === "offline" ? "bg-destructive text-destructive-foreground" : "bg-muted text-muted-foreground";
+    : dashboardStatus === "critical" ? "bg-destructive text-destructive-foreground" : "bg-muted text-muted-foreground";
 
   return (
     <AppShell>
       <PageHeader title="Pond Overview" subtitle="Live snapshot of your aquaculture system." />
 
       {sensorOffline && (
-        <Card role="alert" className="mb-6 border-destructive/50 bg-destructive/5 p-4">
+        <Card role="alert" className="mb-6 border-0 bg-amber-50/80 p-4 dark:bg-amber-950/30">
           <div className="flex items-start gap-3">
-            <WifiOff className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+            <WifiOff className="mt-0.5 h-5 w-5 shrink-0 text-amber-700 dark:text-amber-300" />
             <div>
-              <div className="font-semibold text-destructive">Sensor data is offline</div>
+              <div className="font-semibold text-amber-900 dark:text-amber-200">Sensor data is offline</div>
               <p className="mt-1 text-sm text-muted-foreground">
                 {latest
                   ? `No water parameter readings have arrived in the last ${SENSOR_OFFLINE_AFTER_MINUTES} minutes. Check that the sensors are in the water, powered on, and connected to the network.`
@@ -106,10 +106,10 @@ const Dashboard = () => {
 
       {highlightAlert && (
         <Card
-          className={`mb-6 flex flex-col items-start gap-3 border-l-4 p-4 animate-in fade-in slide-in-from-top-2 sm:flex-row sm:gap-4 sm:p-5 ${
+          className={`mb-6 flex flex-col items-start gap-3 p-4 animate-in fade-in slide-in-from-top-2 sm:flex-row sm:gap-4 sm:p-5 ${
             highlightAlert.severity === "critical"
-              ? "border-l-destructive bg-destructive/5"
-              : "border-l-warning bg-warning/5"
+              ? "bg-destructive/5"
+              : "bg-warning/5"
           }`}
         >
           <div
@@ -188,21 +188,40 @@ const Dashboard = () => {
         </div>
       </Card>
 
-      {/* Sensors */}
-      <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h2 className="text-lg font-semibold tracking-tight">Sensor Readings</h2>
+          <p className="text-sm text-muted-foreground">Latest water quality values from your pond.</p>
+        </div>
+      </div>
+      <div className="mb-6 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {sensors.map((s, i) => (
           <div
             key={i}
             className="stat-tile animate-fade-in hover-scale"
             style={{ animationDelay: `${i * 80}ms`, animationFillMode: "both" }}
           >
-            <div className="flex items-center justify-between mb-3">
-              <s.icon className="h-5 w-5 text-accent" />
+            <div className="mb-3 flex items-center justify-between">
+              <div className="grid h-10 w-10 place-items-center rounded-xl bg-cyan-500/10 text-cyan-700 dark:text-cyan-300">
+                <s.icon className="h-5 w-5" aria-hidden="true" />
+              </div>
               {sensorOffline
-                ? <Badge variant="destructive" className="text-[10px]">Offline</Badge>
-                : latest && <span className={`ripple-dot ${s.ok ? "bg-success" : "bg-destructive"}`} />}
+                ? <Badge variant="outline" className="border-amber-300 bg-amber-100 text-[10px] text-amber-900 dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-200">Offline</Badge>
+                : <Badge variant="outline" className="gap-1.5 border-emerald-300 bg-emerald-50 text-[10px] text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200">
+                    <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-emerald-500" />Online
+                  </Badge>}
             </div>
-            <div className="text-xs uppercase tracking-wider text-muted-foreground">{s.label}</div>
+            <div className="flex items-center gap-2">
+              <div className="text-xs uppercase tracking-wider text-muted-foreground">{s.label}</div>
+              {!sensorOffline && latest && s.val != null && (
+                <span
+                  className={`ripple-dot ${s.ok ? "bg-success" : "bg-destructive"}`}
+                  role="img"
+                  aria-label={s.ok ? "Within range" : "Outside range"}
+                  title={s.ok ? "Within range" : "Outside range"}
+                />
+              )}
+            </div>
             <div className="mt-1 text-3xl font-bitcount-grid-single">
               <span>{s.val != null ? Number(s.val).toFixed(2) : "—"}</span>
               <span className="text-sm text-muted-foreground ml-1">{s.unit}</span>
@@ -248,9 +267,9 @@ const Dashboard = () => {
           ) : (
             <div className="space-y-3">
               {sensorOffline && (
-                <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3">
+                <div className="rounded-lg border border-amber-300 bg-amber-50/70 p-3 dark:border-amber-800 dark:bg-amber-950/30">
                   <div className="flex items-center justify-between gap-2">
-                    <Badge variant="destructive" className="font-coolvetica text-[10px] uppercase">Offline</Badge>
+                    <Badge variant="outline" className="border-amber-300 bg-amber-100 font-coolvetica text-[10px] text-amber-900 uppercase dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-200">Offline</Badge>
                     <span className="text-[10px] text-muted-foreground">Sensor connection</span>
                   </div>
                   <div className="mt-2 text-sm font-medium">No recent water parameter readings.</div>

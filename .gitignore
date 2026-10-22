@@ -32,3 +32,7 @@ dist-ssr
 *.sw?
 
 supabase/.temp/
+
+# Python training cache
+__pycache__/
+*.py[cod]

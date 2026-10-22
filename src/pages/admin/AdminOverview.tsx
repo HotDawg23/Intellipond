@@ -8,13 +8,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
+import { alertHistoryCutoff } from "@/lib/alertFilters";
 
 type OverviewCounts = {
   ponds: number;
   readings: number;
   alerts: number;
   openAlerts: number;
-  historicalAlerts: number;
+  olderAlerts: number;
   growth: number;
   users: number;
 };
@@ -75,12 +76,13 @@ const AdminOverview = () => {
 
     const loadOverview = async () => {
       try {
+        const cutoff = alertHistoryCutoff();
         const [
           pondsResult,
           readingsResult,
           alertsResult,
           openAlertsResult,
-          totalAlertsResult,
+          olderAlertsResult,
           growthResult,
           usersResult,
           recentReadingsResult,
@@ -90,7 +92,7 @@ const AdminOverview = () => {
           supabase.from("sensor_readings").select("id", { count: "exact", head: true }),
           supabase.from("alerts").select("id", { count: "exact", head: true }).eq("status", "active"),
           supabase.from("alerts").select("id", { count: "exact", head: true }).eq("status", "active").eq("acknowledged", false),
-          supabase.from("alerts").select("id", { count: "exact", head: true }),
+          supabase.from("alerts").select("id", { count: "exact", head: true }).lt("created_at", cutoff).neq("status", "active"),
           supabase.from("bangus_growth_records").select("id", { count: "exact", head: true }),
           supabase.from("profiles").select("id", { count: "exact", head: true }),
           supabase.from("sensor_readings")
@@ -99,6 +101,7 @@ const AdminOverview = () => {
             .limit(5),
           supabase.from("alerts")
             .select("id,created_at,last_detected_at,last_sensor_value,sensor_type,condition_key,category,severity,message,acknowledged,status,pond_profiles(name)")
+            .or(`created_at.gte.${cutoff},status.eq.active`)
             .order("last_detected_at", { ascending: false, nullsFirst: false })
             .limit(5),
         ]);
@@ -108,7 +111,7 @@ const AdminOverview = () => {
           readingsResult.error,
           alertsResult.error,
           openAlertsResult.error,
-          totalAlertsResult.error,
+          olderAlertsResult.error,
           growthResult.error,
           usersResult.error,
           recentReadingsResult.error,
@@ -123,7 +126,7 @@ const AdminOverview = () => {
           readings: readingsResult.count ?? 0,
           alerts: alertsResult.count ?? 0,
           openAlerts: openAlertsResult.count ?? 0,
-          historicalAlerts: Math.max(0, (totalAlertsResult.count ?? 0) - (alertsResult.count ?? 0)),
+          olderAlerts: olderAlertsResult.count ?? 0,
           growth: growthResult.count ?? 0,
           users: usersResult.count ?? 0,
         });
@@ -145,7 +148,7 @@ const AdminOverview = () => {
   const tiles = [
     { icon: Waves, label: "Pond profiles", value: counts?.ponds, detail: "Registered pond profiles", href: "/admin/ponds", tone: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-300" },
     { icon: Database, label: "Sensor readings", value: counts?.readings, detail: "All recorded measurements", href: "/admin/sensors", tone: "bg-sky-500/10 text-sky-600 dark:text-sky-300" },
-    { icon: Bell, label: "Active alerts", value: counts?.alerts, detail: counts ? counts.openAlerts.toLocaleString() + " unacknowledged · " + counts.historicalAlerts.toLocaleString() + " historical" : "Incident totals", href: "/admin/alerts", tone: "bg-amber-500/10 text-amber-600 dark:text-amber-300" },
+    { icon: Bell, label: "Active alerts", value: counts?.alerts, detail: counts ? counts.openAlerts.toLocaleString() + " unacknowledged · " + counts.olderAlerts.toLocaleString() + " older alerts" : "Incident totals", href: "/admin/alerts", tone: "bg-amber-500/10 text-amber-600 dark:text-amber-300" },
     { icon: Fish, label: "Growth records", value: counts?.growth, detail: "Fish measurements logged", href: "/admin/growth", tone: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300" },
     { icon: Users, label: "Users", value: counts?.users, detail: "Registered user profiles", href: "/admin/users", tone: "bg-violet-500/10 text-violet-600 dark:text-violet-300" },
   ];
@@ -264,7 +267,7 @@ const AdminOverview = () => {
             ) : error ? (
               <p className="px-5 py-8 text-sm text-muted-foreground">Recent alerts are unavailable.</p>
             ) : recentAlerts.length === 0 ? (
-              <p className="px-5 py-8 text-sm text-muted-foreground">No alerts have been recorded yet.</p>
+              <p className="px-5 py-8 text-sm text-muted-foreground">No recent alerts or active incidents.</p>
             ) : (
               <ul className="divide-y divide-border">
                 {recentAlerts.map(alert => (

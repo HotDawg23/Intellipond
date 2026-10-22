@@ -60,9 +60,11 @@ const GrowthAdmin = () => {
   const [savingStockedCount, setSavingStockedCount] = useState(false);
   const [editingBatch, setEditingBatch] = useState<FishBatch | null>(null);
   const [stockedFishCountInput, setStockedFishCountInput] = useState("");
+  const [historyBatchId, setHistoryBatchId] = useState("all");
   const [batchForm, setBatchForm] = useState({ pond_id: "", batch_name: "", stocking_date: localDate(), stocked_fish_count: "", initial_weight_g: "", initial_length_cm: "" });
   const [recordForm, setRecordForm] = useState({ fish_batch_id: "", recorded_at: localDate(), avg_weight_g: "", avg_length_cm: "", feeding_notes: "", pond_condition: "", growth_status: "" });
   const activeBatches = batches.filter(batch => batch.is_active);
+  const visibleRecords = historyBatchId === "all" ? records : records.filter(record => record.fish_batch_id === historyBatchId);
   const selectedPond = ponds.find(pond => pond.id === batchForm.pond_id);
   const newBatchDensity = formatStockingDensity(
     batchForm.stocked_fish_count ? Number(batchForm.stocked_fish_count) : null,
@@ -187,6 +189,7 @@ const GrowthAdmin = () => {
     const length = recordForm.avg_length_cm ? Number(recordForm.avg_length_cm) : null;
     if (!weight && !length) return toast.error("Enter an average weight or length measurement.");
     if ((weight != null && weight <= 0) || (length != null && length <= 0)) return toast.error("Measurements must be greater than zero.");
+    if (recordForm.recorded_at > localDate()) return toast.error("Measurement date cannot be in the future.");
     const ageDays = daysBetween(batch.stocking_date, recordForm.recorded_at);
     if (ageDays < 0) return toast.error("Measurement date cannot be before the batch stocking date.");
 
@@ -275,7 +278,7 @@ const GrowthAdmin = () => {
                       <SelectContent>{activeBatches.map(batch => <SelectItem key={batch.id} value={batch.id}>{batch.batch_name} · {batch.pond_profiles?.name ?? "Pond"}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
-                  <div><Label>Measurement date</Label><Input required type="date" value={recordForm.recorded_at} onChange={event => setRecordForm({ ...recordForm, recorded_at: event.target.value })} /></div>
+                  <div><Label>Measurement date</Label><Input required type="date" max={localDate()} value={recordForm.recorded_at} onChange={event => setRecordForm({ ...recordForm, recorded_at: event.target.value })} /></div>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div><Label>Average weight (g)</Label><Input min="0.01" step="0.01" type="number" value={recordForm.avg_weight_g} onChange={event => setRecordForm({ ...recordForm, avg_weight_g: event.target.value })} /></div>
                     <div><Label>Average length (cm)</Label><Input min="0.01" step="0.01" type="number" value={recordForm.avg_length_cm} onChange={event => setRecordForm({ ...recordForm, avg_length_cm: event.target.value })} /></div>
@@ -299,6 +302,14 @@ const GrowthAdmin = () => {
           </>
         }
       />
+
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-primary/5 p-4 text-sm">
+        <div>
+          <p className="font-semibold">{activeBatches.length} active {activeBatches.length === 1 ? "batch" : "batches"} · {records.length} recorded {records.length === 1 ? "sample" : "samples"}</p>
+          <p className="mt-1 text-muted-foreground">Record weight or length regularly to keep the operator estimate current.</p>
+        </div>
+        <p className="text-muted-foreground">Latest sample: {records.length ? displayDate(records[0].measurement_date) : "None yet"}</p>
+      </div>
 
       <Dialog open={editingBatch !== null} onOpenChange={open => { if (!open) setEditingBatch(null); }}>
         <DialogContent>
@@ -337,88 +348,108 @@ const GrowthAdmin = () => {
         </DialogContent>
       </Dialog>
 
-      <Card className="mb-6 space-y-1 p-4 text-sm text-muted-foreground">
-        <p>Water averages use readings from the same pond, starting at stocking or the day after the prior distinct fish-sampling date, through the measurement date.</p>
-        <p>Each value shows its available reading count. Averages can update as readings arrive during the current day.</p>
-      </Card>
-
       <section className="mb-6 space-y-3" aria-labelledby="batches-heading">
-        <h2 id="batches-heading" className="text-lg font-semibold">Fish batches</h2>
+        <div>
+          <h2 id="batches-heading" className="text-lg font-semibold">Fish batches</h2>
+          <p className="text-sm text-muted-foreground">Stocking details and the latest recorded measurements.</p>
+        </div>
         {batches.length === 0 ? (
           <Card className="p-5"><p className="text-sm text-muted-foreground">No batches registered yet. Add the current batch’s stocking date and starting measurement to activate a forecast.</p></Card>
         ) : (
-          <div className="grid gap-3 md:grid-cols-2">
-            {batches.map(batch => (
-              <Card key={batch.id} className="flex flex-col justify-between gap-4 p-4 sm:flex-row sm:items-start">
-                <div>
-                  <div className="flex flex-wrap items-center gap-2"><span className="font-medium">{batch.batch_name}</span><Badge variant={batch.is_active ? "default" : "secondary"}>{batch.is_active ? "Active" : "Closed"}</Badge></div>
-                  <p className="mt-1 text-sm text-muted-foreground">{batch.pond_profiles?.name ?? "Pond"} · stocked {format(new Date(`${batch.stocking_date}T00:00:00`), "MMM d, yyyy")}</p>
-                  <p className="mt-1 text-sm">{batch.initial_weight_g != null ? `${batch.initial_weight_g} g` : "Weight not recorded"} · {batch.initial_length_cm != null ? `${batch.initial_length_cm} cm` : "length not recorded"}</p>
-                  <p className="mt-2 text-sm font-medium text-foreground">
-                    {batch.stocked_fish_count != null
-                      ? `${batch.stocked_fish_count.toLocaleString()} fish stocked`
-                      : "Fish count not recorded"}
-                    {" · "}
-                    {formatStockingDensity(batch.stocked_fish_count, batch.pond_profiles?.area_sqm)
-                      ? `Initial density: ${formatStockingDensity(batch.stocked_fish_count, batch.pond_profiles?.area_sqm)}`
-                      : batch.stocked_fish_count == null
-                        ? "Enter fish count to calculate density"
-                        : "Pond area required to calculate density"}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Density uses the pond’s recorded area and describes the initial stocking, not the current surviving fish.
-                  </p>
+          <div className="grid gap-3 lg:grid-cols-2">
+            {batches.map(batch => {
+              const latestWeight = records.find(record => record.fish_batch_id === batch.id && record.avg_weight_g != null);
+              const latestLength = records.find(record => record.fish_batch_id === batch.id && record.avg_length_cm != null);
+              const density = formatStockingDensity(batch.stocked_fish_count, batch.pond_profiles?.area_sqm);
+              return (
+                <Card key={batch.id} className="p-4 sm:p-5">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h3 className="font-semibold">{batch.batch_name}</h3>
+                      <p className="text-sm text-muted-foreground">{batch.pond_profiles?.name ?? "Pond unavailable"}</p>
+                    </div>
+                    <Badge variant={batch.is_active ? "default" : "secondary"}>{batch.is_active ? "Active" : "Closed"}</Badge>
+                  </div>
+                  <p className="mt-3 text-sm text-muted-foreground">Stocked {format(new Date(`${batch.stocking_date}T00:00:00`), "MMM d, yyyy")}</p>
+                  <div className="mt-3 grid grid-cols-2 gap-3 border-t border-border pt-3 text-sm sm:grid-cols-4">
+                    <div><p className="text-xs text-muted-foreground">Fish stocked</p><p className="font-medium">{batch.stocked_fish_count?.toLocaleString() ?? "Not recorded"}</p></div>
+                    <div><p className="text-xs text-muted-foreground">Initial density</p><p className="font-medium">{density ?? "Unavailable"}</p></div>
+                    <div><p className="text-xs text-muted-foreground">Latest weight</p><p className="font-medium">{latestWeight ? `${latestWeight.avg_weight_g} g` : "No sample"}</p></div>
+                    <div><p className="text-xs text-muted-foreground">Latest length</p><p className="font-medium">{latestLength ? `${latestLength.avg_length_cm} cm` : "No sample"}</p></div>
+                  </div>
+                  <details className="mt-3 border-t border-border pt-3 text-sm">
+                    <summary className="cursor-pointer font-medium text-primary">Starting measurements and details</summary>
+                    <div className="mt-3 space-y-1 text-muted-foreground">
+                      <p>Starting weight: {batch.initial_weight_g != null ? `${batch.initial_weight_g} g` : "Not recorded"}</p>
+                      <p>Starting length: {batch.initial_length_cm != null ? `${batch.initial_length_cm} cm` : "Not recorded"}</p>
+                      <p>Density uses the pond’s recorded area and the initial fish count. It does not represent surviving fish.</p>
+                      {!density && <p>{batch.stocked_fish_count == null ? "Enter a fish count to calculate density." : "Record the pond area to calculate density."}</p>}
+                    </div>
+                  </details>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <Button variant="outline" size="sm" onClick={() => { setStockedFishCountInput(batch.stocked_fish_count?.toString() ?? ""); setEditingBatch(batch); }}>
+                      {batch.stocked_fish_count == null ? "Enter fish count" : "Edit count"}
+                    </Button>
+                    {batch.is_active && <Button variant="ghost" size="sm" onClick={() => void closeBatch(batch)}><Archive className="mr-2 h-4 w-4" />Close batch</Button>}
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      <section aria-labelledby="measurements-heading" className="space-y-3">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 id="measurements-heading" className="text-lg font-semibold">Measurements</h2>
+            <p className="text-sm text-muted-foreground">Open a record for water conditions and notes.</p>
+          </div>
+          {batches.length > 1 && <div className="w-full sm:w-60">
+            <Label htmlFor="measurement-batch">Filter by batch</Label>
+            <Select value={historyBatchId} onValueChange={setHistoryBatchId}>
+              <SelectTrigger id="measurement-batch"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All batches</SelectItem>
+                {batches.map(batch => <SelectItem key={batch.id} value={batch.id}>{batch.batch_name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>}
+        </div>
+        {visibleRecords.length === 0 ? (
+          <Card className="p-4 sm:p-6"><EmptyState icon={Fish} title={records.length ? "No measurements for this batch." : "No growth measurements yet."} description={records.length ? "Choose another batch or add a measurement for this one." : "Record the next sample to update the estimate and begin checking it against BFAR fish."} /></Card>
+        ) : (
+          <div className="space-y-2">
+            {visibleRecords.map(record => (
+              <Card key={record.id} className="p-4">
+                <div className="grid gap-3 text-sm sm:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(0,1fr))] sm:items-center">
+                  <div className="min-w-0">
+                    <p className="font-semibold">{displayDate(record.measurement_date)}</p>
+                    <p className="truncate text-muted-foreground">{record.batch_name ?? "Unassigned"} · {record.pond_name ?? "Pond unavailable"}</p>
+                  </div>
+                  <div className="flex justify-between gap-2 sm:block"><span className="text-muted-foreground">Weight</span><span className="font-medium sm:block">{record.avg_weight_g != null ? `${record.avg_weight_g} g` : "Not recorded"}</span></div>
+                  <div className="flex justify-between gap-2 sm:block"><span className="text-muted-foreground">Length</span><span className="font-medium sm:block">{record.avg_length_cm != null ? `${record.avg_length_cm} cm` : "Not recorded"}</span></div>
+                  <div className="flex justify-between gap-2 sm:block"><span className="text-muted-foreground">Status</span><span className="font-medium sm:block">{record.growth_status ?? "Not set"}</span></div>
                 </div>
-                <div className="flex shrink-0 items-center gap-2 sm:flex-col sm:items-end">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setStockedFishCountInput(batch.stocked_fish_count?.toString() ?? "");
-                      setEditingBatch(batch);
-                    }}
-                  >
-                    {batch.stocked_fish_count == null ? "Enter fish count" : "Edit count"}
-                  </Button>
-                  {batch.is_active && <Button variant="ghost" size="sm" onClick={() => void closeBatch(batch)}><Archive className="mr-2 h-4 w-4" />Close</Button>}
-                </div>
+                <details className="mt-3 border-t border-border pt-3 text-sm">
+                  <summary className="cursor-pointer font-medium text-primary">Details</summary>
+                  <div className="mt-3 grid gap-3 text-muted-foreground sm:grid-cols-2 lg:grid-cols-3">
+                    <p><span className="font-medium text-foreground">Age:</span> {record.age_days != null ? `${record.age_days} days` : "Not recorded"}</p>
+                    <p><span className="font-medium text-foreground">DO:</span> {displayWaterAverage(record.avg_do_mg_l, record.do_reading_count, "mg/L")}</p>
+                    <p><span className="font-medium text-foreground">pH:</span> {displayWaterAverage(record.avg_ph, record.ph_reading_count, "")}</p>
+                    <p><span className="font-medium text-foreground">Temperature:</span> {displayWaterAverage(record.avg_temperature_c, record.temperature_reading_count, "°C")}</p>
+                    <p><span className="font-medium text-foreground">Turbidity:</span> {displayWaterAverage(record.avg_turbidity_ntu, record.turbidity_reading_count, "NTU")}</p>
+                    <p><span className="font-medium text-foreground">Average window:</span> {displayDate(record.average_start_date)} – {displayDate(record.average_end_date)}</p>
+                    <p><span className="font-medium text-foreground">Feeding notes:</span> {record.feeding_notes || "None"}</p>
+                    <p><span className="font-medium text-foreground">Pond condition:</span> {record.pond_condition || "None"}</p>
+                  </div>
+                  <p className="mt-3 text-xs text-muted-foreground">Water averages use readings from this pond between the prior sampling date (or stocking) and this measurement. Parentheses show each non-null reading count; current-day averages may update.</p>
+                </details>
               </Card>
             ))}
           </div>
         )}
       </section>
-
-      <Card className="p-4 sm:p-6">
-        {records.length === 0 ? (
-          <EmptyState icon={Fish} title="No growth measurements yet." description="Record the next sample to update the estimate and begin checking it against BFAR fish." />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[90rem] text-sm">
-              <thead><tr className="border-b border-border text-left text-xs uppercase tracking-wider text-muted-foreground">
-                <th className="py-2 pr-4">Date</th><th className="pr-4">Batch / pond</th><th className="pr-4">Age</th><th className="pr-4">Weight</th><th className="pr-4">Length</th><th className="pr-4">Avg DO</th><th className="pr-4">Avg pH</th><th className="pr-4">Avg temp.</th><th className="pr-4">Avg turbidity</th><th className="pr-4">Water average window</th><th>Status</th>
-              </tr></thead>
-              <tbody className="divide-y divide-border">
-                {records.map(record => (
-                  <tr key={record.id}>
-                    <td className="py-2.5 pr-4 font-mono text-xs">{displayDate(record.measurement_date)}</td>
-                    <td className="pr-4">{record.batch_name ?? "Unassigned"} · {record.pond_name ?? "—"}</td>
-                    <td className="pr-4 font-mono">{record.age_days ?? "—"}d</td>
-                    <td className="pr-4 font-mono">{record.avg_weight_g ?? "—"}g</td>
-                    <td className="pr-4 font-mono">{record.avg_length_cm ?? "—"}cm</td>
-                    <td className="pr-4 font-mono">{displayWaterAverage(record.avg_do_mg_l, record.do_reading_count, "mg/L")}</td>
-                    <td className="pr-4 font-mono">{displayWaterAverage(record.avg_ph, record.ph_reading_count, "")}</td>
-                    <td className="pr-4 font-mono">{displayWaterAverage(record.avg_temperature_c, record.temperature_reading_count, "°C")}</td>
-                    <td className="pr-4 font-mono">{displayWaterAverage(record.avg_turbidity_ntu, record.turbidity_reading_count, "NTU")}</td>
-                    <td className="pr-4 text-xs">{displayDate(record.average_start_date)} – {displayDate(record.average_end_date)}</td>
-                    <td>{record.growth_status ?? "—"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <p className="mt-3 text-xs text-muted-foreground">Counts are the non-null readings used for each average.</p>
-          </div>
-        )}
-      </Card>
     </AppShell>
   );
 };

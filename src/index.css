@@ -101,12 +101,6 @@
     @apply relative overflow-hidden rounded-2xl border border-border bg-card p-5 transition-all hover:border-accent/40;
     box-shadow: var(--shadow-soft);
   }
-  .stat-tile::before {
-    content: '';
-    @apply absolute inset-x-0 top-0 h-1;
-    background: var(--gradient-aqua);
-    opacity: 0.6;
-  }
   .gradient-deep { background: var(--gradient-deep); }
   .gradient-aqua { background: var(--gradient-aqua); }
   .text-gradient {

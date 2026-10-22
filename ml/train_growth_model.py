@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import math
 import statistics
@@ -17,6 +18,7 @@ ROOT = Path(__file__).resolve().parent
 PUBLIC_DATA = ROOT / "data" / "worldfish_milkfish_growth.csv"
 DEFAULT_OUTPUT = ROOT.parent / "public" / "growth-model.json"
 METRICS = ("avg_weight_g", "avg_length_cm")
+MODEL_ALGORITHM_VERSION = "pooled-log-rate-v1"
 
 
 def load_csv(path: Path, default_source: str) -> list[dict[str, Any]]:
@@ -125,6 +127,8 @@ def evaluate_long_intervals(
     }
     for metric in METRICS:
         model_errors: list[float] = []
+        unchanged_errors: list[float] = []
+        paired_model_errors: list[float] = []
         persistence_errors: list[float] = []
         test_intervals = 0
         for cohort, measurements in grouped.items():
@@ -134,16 +138,20 @@ def evaluate_long_intervals(
             for index, interval in enumerate(interval_rates(measurements, metric)):
                 predicted = interval["start"] * math.exp(model["daily_log_growth_median"] * interval["days"])
                 model_errors.append(abs(predicted - interval["end"]))
+                unchanged_errors.append(abs(interval["start"] - interval["end"]))
                 test_intervals += 1
                 if index > 0:
                     previous = interval_rates(measurements[: index + 2], metric)
                     if len(previous) >= 2:
                         recent_rate = previous[-2]["daily_log_rate"]
                         baseline = interval["start"] * math.exp(recent_rate * interval["days"])
+                        paired_model_errors.append(abs(predicted - interval["end"]))
                         persistence_errors.append(abs(baseline - interval["end"]))
         report["metrics"][metric] = {
             "held_out_intervals": test_intervals,
             "model_mae": round(statistics.mean(model_errors), 4) if model_errors else None,
+            "unchanged_baseline_mae": round(statistics.mean(unchanged_errors), 4) if unchanged_errors else None,
+            "paired_model_mae": round(statistics.mean(paired_model_errors), 4) if paired_model_errors else None,
             "recent_rate_baseline_mae": round(statistics.mean(persistence_errors), 4) if persistence_errors else None,
             "baseline_intervals": len(persistence_errors),
             "unit": "g" if metric == "avg_weight_g" else "cm",
@@ -160,8 +168,10 @@ def evaluate_seven_day_bfar(
 
     for metric in METRICS:
         model_errors: list[float] = []
+        paired_model_errors: list[float] = []
         recent_rate_errors: list[float] = []
         tested_cohorts: set[str] = set()
+        paired_cohorts: set[str] = set()
 
         for cohort, measurements in grouped.items():
             if not cohort.startswith("BFAR-"):
@@ -182,28 +192,32 @@ def evaluate_seven_day_bfar(
                 if index > 0:
                     recent_rate = intervals[index - 1]["daily_log_rate"]
                     baseline = interval["start"] * math.exp(recent_rate * 7)
+                    paired_model_errors.append(abs(predicted - interval["end"]))
                     recent_rate_errors.append(abs(baseline - interval["end"]))
+                    paired_cohorts.add(cohort)
 
         metrics[metric] = {
             "held_out_cohorts": len(tested_cohorts),
             "seven_day_pairs": len(model_errors),
             "model_mae": round(statistics.mean(model_errors), 4) if model_errors else None,
+            "paired_model_mae": round(statistics.mean(paired_model_errors), 4) if paired_model_errors else None,
             "recent_rate_baseline_mae": round(statistics.mean(recent_rate_errors), 4) if recent_rate_errors else None,
             "baseline_pairs": len(recent_rate_errors),
+            "paired_cohorts": len(paired_cohorts),
             "unit": "g" if metric == "avg_weight_g" else "cm",
         }
 
     passed = all(
-        metrics[metric]["held_out_cohorts"] >= 3
+        metrics[metric]["paired_cohorts"] >= 3
         and metrics[metric]["recent_rate_baseline_mae"] is not None
-        and metrics[metric]["model_mae"] < metrics[metric]["recent_rate_baseline_mae"]
+        and metrics[metric]["paired_model_mae"] < metrics[metric]["recent_rate_baseline_mae"]
         for metric in METRICS
     )
     return {
         "status": "validated" if passed else "not_validated",
         "holdout_method": "leave-one-BFAR-cohort-out",
         "minimum_held_out_cohorts": 3,
-        "note": "Requires exact seven-day measurement pairs from at least three separate BFAR stocking batches, with lower error than the recent-rate baseline for both measurements.",
+        "note": "Requires exact seven-day measurement pairs with earlier rate history from at least three separate BFAR stocking batches, with lower error than the recent-rate baseline on the same pairs for both measurements.",
         "metrics": metrics,
         "tested_bfar_cohorts": len(validation_cohorts),
     }
@@ -223,9 +237,11 @@ def train(rows: list[dict[str, Any]]) -> dict[str, Any]:
     ]
     sources = sorted({row["source"] for row in rows if row["source"]})
     local_cohorts = sorted({row["source_cohort"] for row in rows if row["source_cohort"].startswith("BFAR-")})
+    normalized_rows = sorted(rows, key=lambda row: (row["source_cohort"], row["days_since_stocking"]))
+    data_hash = hashlib.sha256(json.dumps(normalized_rows, sort_keys=True).encode("utf-8")).hexdigest()[:12]
     return {
         "schema_version": 1,
-        "model_version": "2026-10-public-milkfish-reference-v1",
+        "model_version": f"milkfish-{MODEL_ALGORITHM_VERSION}-{data_hash}",
         "model_name": "Pooled median daily log-growth rate",
         "target_horizon_days": 7,
         "outputs": {

@@ -7,78 +7,277 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Waves, Plus, Trash2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { MapPin, Pencil, Plus, Ruler, Trash2, Waves, X } from "lucide-react";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+
+type PondProfile = {
+  id: string;
+  name: string;
+  location: string | null;
+  area_sqm: number | null;
+  notes: string | null;
+};
+
+type PondForm = {
+  name: string;
+  location: string;
+  area_sqm: string;
+  notes: string;
+};
+
+const emptyForm = (): PondForm => ({ name: "", location: "", area_sqm: "", notes: "" });
 
 const Ponds = () => {
-  const [ponds, setPonds] = useState<any[]>([]);
+  const [ponds, setPonds] = useState<PondProfile[]>([]);
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", location: "", area_sqm: "", notes: "" });
+  const [editingPond, setEditingPond] = useState<PondProfile | null>(null);
+  const [pondToDelete, setPondToDelete] = useState<PondProfile | null>(null);
+  const [deleteMode, setDeleteMode] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [form, setForm] = useState<PondForm>(emptyForm);
 
-  const load = () => supabase.from("pond_profiles").select("id,name,location,area_sqm,notes").order("created_at", { ascending: false }).then(({ data }) => setPonds(data ?? []));
+  const load = () =>
+    supabase
+      .from("pond_profiles")
+      .select("id,name,location,area_sqm,notes")
+      .order("created_at", { ascending: false })
+      .then(({ data }) => setPonds(data ?? []));
+
   useEffect(() => { load(); }, []);
+
+  const startAdd = () => {
+    setDeleteMode(false);
+    setEditingPond(null);
+    setForm(emptyForm());
+    setOpen(true);
+  };
+
+  const startEdit = (pond: PondProfile) => {
+    setDeleteMode(false);
+    setEditingPond(pond);
+    setForm({
+      name: pond.name,
+      location: pond.location ?? "",
+      area_sqm: pond.area_sqm?.toString() ?? "",
+      notes: pond.notes ?? "",
+    });
+    setOpen(true);
+  };
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    setOpen(nextOpen);
+    if (!nextOpen) {
+      setEditingPond(null);
+      setForm(emptyForm());
+    }
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { error } = await supabase.from("pond_profiles").insert({
-      name: form.name, location: form.location || null,
-      area_sqm: form.area_sqm ? +form.area_sqm : null,
-      notes: form.notes || null,
-    });
+    const values = {
+      name: form.name.trim(),
+      location: form.location.trim() || null,
+      area_sqm: form.area_sqm ? Number(form.area_sqm) : null,
+      notes: form.notes.trim() || null,
+    };
+
+    const { error } = editingPond
+      ? await supabase.from("pond_profiles").update(values).eq("id", editingPond.id)
+      : await supabase.from("pond_profiles").insert(values);
+
     if (error) return toast.error(error.message);
-    toast.success("Pond added"); setOpen(false); setForm({ name: "", location: "", area_sqm: "", notes: "" }); load();
+    toast.success(editingPond ? "Pond updated" : "Pond added");
+    handleOpenChange(false);
+    load();
   };
 
-  const remove = async (id: string) => {
-    const { error } = await supabase.from("pond_profiles").delete().eq("id", id);
-    if (error) return toast.error(error.message);
-    toast.success("Pond removed"); load();
+  const confirmDelete = async () => {
+    if (!pondToDelete || deleting) return;
+
+    const pond = pondToDelete;
+    setDeleting(true);
+    try {
+      const { error } = await supabase.from("pond_profiles").delete().eq("id", pond.id);
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+
+      toast.success("Pond removed");
+      setPonds(current => current.filter(item => item.id !== pond.id));
+      if (ponds.length <= 1) setDeleteMode(false);
+      setPondToDelete(null);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to delete pond. Please try again.");
+    } finally {
+      setDeleting(false);
+    }
   };
 
   return (
     <AppShell admin>
-      <PageHeader title="Pond Profiles" subtitle="Manage your aquaculture sites."
+      <PageHeader
+        title="Pond Profiles"
+        subtitle="Manage your aquaculture sites."
         actions={
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild><Button className="gradient-aqua text-white border-0"><Plus className="h-4 w-4 mr-2" />New pond</Button></DialogTrigger>
-            <DialogContent>
-              <DialogHeader><DialogTitle>Add pond</DialogTitle></DialogHeader>
-              <form onSubmit={submit} className="space-y-3">
-                <div><Label>Name</Label><Input required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
-                <div><Label>Location</Label><Input value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} /></div>
-                <div><Label>Area (sqm)</Label><Input type="number" value={form.area_sqm} onChange={e => setForm({ ...form, area_sqm: e.target.value })} /></div>
-                <p className="text-xs text-muted-foreground">Stocking dates and fish counts belong to a fish batch. Add them in Growth Records.</p>
-                <div><Label>Notes</Label><Textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></div>
-                <Button type="submit" className="w-full">Save</Button>
-              </form>
-            </DialogContent>
-          </Dialog>
+          <Button onClick={startAdd} className="gradient-aqua border-0 text-white">
+            <Plus className="mr-2 h-4 w-4" />New pond
+          </Button>
         }
       />
-      <p className="mb-4 text-sm text-muted-foreground">Stocking dates and fish counts are recorded per batch in Growth Records. Pond profiles keep the site details, such as name, location, and area.</p>
+
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/30 px-4 py-3">
+          <span className="mt-0.5 rounded-lg bg-primary/10 p-2 text-primary">
+            <Waves className="h-4 w-4" aria-hidden="true" />
+          </span>
+          <p className="max-w-3xl text-sm text-muted-foreground">
+            {deleteMode
+              ? "Choose the trash icon on a pond card. We’ll ask you to confirm before removing it."
+              : "Pond profiles hold site details. Stocking dates and fish counts are recorded for each batch in Growth Records."}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground">
+            {ponds.length} {ponds.length === 1 ? "pond" : "ponds"}
+          </span>
+          {ponds.length > 0 && (
+            <Button
+              type="button"
+              size="sm"
+              variant={deleteMode ? "secondary" : "outline"}
+              onClick={() => setDeleteMode(current => !current)}
+              aria-pressed={deleteMode}
+            >
+              {deleteMode ? <X className="mr-2 h-4 w-4" /> : <Trash2 className="mr-2 h-4 w-4" />}
+              {deleteMode ? "Done" : "Delete ponds"}
+            </Button>
+          )}
+        </div>
+      </div>
+
       {ponds.length === 0 ? (
-        <Card className="p-6"><EmptyState icon={Waves} title="No pond profiles yet." description="Add your first pond to start monitoring." /></Card>
+        <Card className="p-6">
+          <EmptyState icon={Waves} title="No pond profiles yet." description="Add your first pond to start monitoring." />
+        </Card>
       ) : (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {ponds.map(p => (
-            <Card key={p.id} className="group p-4 sm:p-5">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <div className="break-words text-lg font-semibold">{p.name}</div>
-                  <div className="text-xs text-muted-foreground">{p.location ?? "—"}</div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {ponds.map(pond => (
+            <Card key={pond.id} className="overflow-hidden border-border/80">
+              <div className="p-4 sm:p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+                      <Waves className="h-5 w-5" aria-hidden="true" />
+                    </span>
+                    <div className="min-w-0">
+                      <h2 className="break-words text-lg font-semibold leading-tight">{pond.name}</h2>
+                      <p className="mt-1 flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground">
+                        <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                        <span className="truncate">{pond.location || "Location not set"}</span>
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <Button type="button" variant="outline" size="sm" onClick={() => startEdit(pond)} aria-label={`Edit ${pond.name}`}>
+                      <Pencil className="mr-2 h-3.5 w-3.5" aria-hidden="true" />Edit
+                    </Button>
+                    {deleteMode && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        onClick={() => setPondToDelete(pond)}
+                        aria-label={`Delete ${pond.name}`}
+                        title={`Delete ${pond.name}`}
+                      >
+                        <Trash2 className="h-4 w-4" aria-hidden="true" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
-                <Button size="icon" variant="ghost" onClick={() => remove(p.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+
+                <div className="mt-4 flex flex-wrap items-end justify-between gap-3 border-t border-border pt-4">
+                  <div className="flex items-center gap-2.5">
+                    <span className="rounded-lg bg-muted/60 p-2 text-primary">
+                      <Ruler className="h-4 w-4" aria-hidden="true" />
+                    </span>
+                    <div>
+                      <div className="text-xs text-muted-foreground">Pond area</div>
+                      <div className="font-medium">
+                        {pond.area_sqm == null
+                          ? "Not recorded"
+                          : `${pond.area_sqm.toLocaleString(undefined, { maximumFractionDigits: 2 })} m²`}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {pond.notes && <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">{pond.notes}</p>}
               </div>
-              <div className="mt-4 text-sm">
-                <div><div className="text-xs text-muted-foreground">Area</div><div className="font-mono">{p.area_sqm ?? "—"} m²</div></div>
-              </div>
-              {p.notes && <div className="mt-3 text-sm text-muted-foreground">{p.notes}</div>}
             </Card>
           ))}
         </div>
       )}
+
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingPond ? "Edit pond" : "Add pond"}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={submit} className="space-y-3">
+            <div><Label htmlFor="pond-name">Name</Label><Input id="pond-name" required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></div>
+            <div><Label htmlFor="pond-location">Location</Label><Input id="pond-location" value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} /></div>
+            <div><Label htmlFor="pond-area">Area (m²)</Label><Input id="pond-area" min="0" step="0.01" type="number" value={form.area_sqm} onChange={e => setForm({ ...form, area_sqm: e.target.value })} /></div>
+            <p className="text-xs text-muted-foreground">Stocking dates and fish counts belong to a fish batch. Add them in Growth Records.</p>
+            <div><Label htmlFor="pond-notes">Notes</Label><Textarea id="pond-notes" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></div>
+            <Button type="submit" className="w-full">{editingPond ? "Save changes" : "Save pond"}</Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog
+        open={pondToDelete !== null}
+        onOpenChange={nextOpen => {
+          if (!nextOpen && !deleting) setPondToDelete(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {pondToDelete?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently deletes the pond and its saved sensor readings, sensor status, fish batches, growth records, and alerts. Sensors configured for this pond will stop saving readings until they are reassigned. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={event => {
+                event.preventDefault();
+                void confirmDelete();
+              }}
+            >
+              {deleting ? "Deleting…" : "Delete pond"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppShell>
   );
 };
+
 export default Ponds;

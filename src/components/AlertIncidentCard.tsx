@@ -14,9 +14,10 @@ type AlertIncidentCardProps = {
   onAcknowledge?: () => void;
   useCoolveticaForStatus?: boolean;
   useBitcountGridForReading?: boolean;
+  showSeverityAccent?: boolean;
 };
 
-const AlertIncidentCard = ({ alert, pondName, canAcknowledge = false, acknowledging = false, onAcknowledge, useCoolveticaForStatus = false, useBitcountGridForReading = false }: AlertIncidentCardProps) => {
+const AlertIncidentCard = ({ alert, pondName, canAcknowledge = false, acknowledging = false, onAcknowledge, useCoolveticaForStatus = false, useBitcountGridForReading = false, showSeverityAccent = true }: AlertIncidentCardProps) => {
   const isCritical = alert.severity === "critical";
   const SeverityIcon = isCritical ? Siren : alert.severity === "warning" ? AlertTriangle : Bell;
   const accent = alert.status === "legacy_archived"
@@ -34,7 +35,7 @@ const AlertIncidentCard = ({ alert, pondName, canAcknowledge = false, acknowledg
   const acknowledged = alert.status === "active" && alert.acknowledged;
 
   return (
-    <Card className={`group overflow-hidden border-border/70 border-l-4 bg-gradient-to-br from-card via-card to-muted/30 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md ${accent}`}>
+    <Card className={`group overflow-hidden border-border/70 ${showSeverityAccent ? `border-l-4 ${accent}` : ""} bg-gradient-to-br from-card via-card to-muted/30 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md`}>
       <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-start sm:p-5">
         <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ${iconStyle}`}>
           <SeverityIcon className="h-5 w-5" aria-hidden="true" />

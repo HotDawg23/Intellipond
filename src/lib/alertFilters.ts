@@ -4,6 +4,21 @@ import type { AlertRecord } from "@/lib/alerts";
 export type AlertSeverityFilter = "all" | "critical" | "warning";
 export type AlertDateRangeFilter = "all" | "today" | "7d" | "30d";
 export type AlertStatusFilter = "all" | "needs_acknowledgement" | "acknowledged" | "resolved" | "legacy";
+export type AlertAgeView = "recent" | "older";
+export const ALERT_PAGE_SIZE = 30;
+
+export function alertHistoryCutoff(now = new Date()) {
+  return new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString();
+}
+
+export function isOlderAlert(alert: Pick<AlertRecord, "created_at" | "status">, now = new Date()) {
+  return alert.status !== "active" && new Date(alert.created_at).getTime() < new Date(alertHistoryCutoff(now)).getTime();
+}
+
+export function alertDateRangeStart(range: AlertDateRangeFilter, now = new Date()) {
+  if (range === "all") return null;
+  return (range === "today" ? startOfDay(now) : subDays(now, range === "7d" ? 7 : 30)).toISOString();
+}
 
 export function isAlertWithinDateRange(createdAt: string, range: AlertDateRangeFilter, now = new Date()) {
   if (range === "all") return true;

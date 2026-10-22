@@ -1,6 +1,6 @@
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Float, Environment, MeshDistortMaterial, Sphere } from "@react-three/drei";
-import { useMemo, useRef, Suspense } from "react";
+import { useMemo, useRef, Suspense, type ComponentRef } from "react";
 import * as THREE from "three";
 import { useCanvasVisibility } from "@/hooks/use-canvas-visibility";
 import MilkfishModel from "@/components/MilkfishModel";
@@ -58,7 +58,7 @@ function Bubbles() {
 }
 
 function WaterBlob() {
-  const ref = useRef<THREE.ShaderMaterial & { distort: number }>(null!);
+  const ref = useRef<ComponentRef<typeof MeshDistortMaterial>>(null!);
   useFrame((state) => {
     if (ref.current) ref.current.distort = 0.35 + Math.sin(state.clock.elapsedTime) * 0.08;
   });

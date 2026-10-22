@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "model_version": "2026-10-public-milkfish-reference-v1",
+  "model_version": "milkfish-pooled-log-rate-v1-5825fe2ed17b",
   "model_name": "Pooled median daily log-growth rate",
   "target_horizon_days": 7,
   "outputs": {
@@ -38,6 +38,8 @@
       "avg_weight_g": {
         "held_out_intervals": 5,
         "model_mae": 238.1572,
+        "unchanged_baseline_mae": 44.9,
+        "paired_model_mae": 467.5111,
         "recent_rate_baseline_mae": 2004.4122,
         "baseline_intervals": 2,
         "unit": "g"
@@ -45,6 +47,8 @@
       "avg_length_cm": {
         "held_out_intervals": 5,
         "model_mae": 13.7647,
+        "unchanged_baseline_mae": 7.456,
+        "paired_model_mae": 19.9339,
         "recent_rate_baseline_mae": 31.6876,
         "baseline_intervals": 2,
         "unit": "cm"
@@ -55,22 +59,26 @@
     "status": "not_validated",
     "holdout_method": "leave-one-BFAR-cohort-out",
     "minimum_held_out_cohorts": 3,
-    "note": "Requires exact seven-day measurement pairs from at least three separate BFAR stocking batches, with lower error than the recent-rate baseline for both measurements.",
+    "note": "Requires exact seven-day measurement pairs with earlier rate history from at least three separate BFAR stocking batches, with lower error than the recent-rate baseline on the same pairs for both measurements.",
     "metrics": {
       "avg_weight_g": {
         "held_out_cohorts": 0,
         "seven_day_pairs": 0,
         "model_mae": null,
+        "paired_model_mae": null,
         "recent_rate_baseline_mae": null,
         "baseline_pairs": 0,
+        "paired_cohorts": 0,
         "unit": "g"
       },
       "avg_length_cm": {
         "held_out_cohorts": 0,
         "seven_day_pairs": 0,
         "model_mae": null,
+        "paired_model_mae": null,
         "recent_rate_baseline_mae": null,
         "baseline_pairs": 0,
+        "paired_cohorts": 0,
         "unit": "cm"
       }
     },
