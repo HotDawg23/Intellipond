@@ -79,6 +79,17 @@ const Dashboard = () => {
     : dashboardStatus === "watch" ? "bg-warning text-warning-foreground"
     : dashboardStatus === "critical" ? "bg-destructive text-destructive-foreground" : "bg-muted text-muted-foreground";
 
+  const chartData = history.map(reading => ({
+    ...reading,
+    time: format(new Date(reading.recorded_at), "HH:mm"),
+  }));
+  const chartSeries = [
+    { key: "do_mg_l", name: "Dissolved oxygen", unit: "mg/L", color: "hsl(var(--accent))", decimals: 1 },
+    { key: "ph", name: "pH", unit: "", color: "hsl(var(--success))", decimals: 1 },
+    { key: "temperature_c", name: "Temperature", unit: "°C", color: "hsl(var(--warning))", decimals: 1 },
+    { key: "turbidity_ntu", name: "Turbidity", unit: "NTU", color: "hsl(var(--primary))", decimals: 0 },
+  ] as const;
+
   return (
     <AppShell>
       <PageHeader title="Pond Overview" subtitle="Live snapshot of your aquaculture system." />
@@ -160,30 +171,32 @@ const Dashboard = () => {
       )}
 
       {/* Hero status */}
-      <Card className="overflow-hidden border-border/60 mb-6">
-        <div className="grid md:grid-cols-3 gap-0">
-          <div className="relative p-5 text-white gradient-deep sm:p-8 md:col-span-2">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,hsl(188_85%_55%/0.3),transparent_50%)]" />
-            <div className="relative">
-              <div className="flex items-center gap-2 text-white/70 text-sm mb-2">
-                <Waves className="h-4 w-4" /> Overall Pond Condition
-              </div>
-              <div className="flex items-baseline gap-4">
-                <div className="font-coolvetica text-5xl font-semibold capitalize">{dashboardStatus}</div>
-                <Badge className={statusColor + " border-0"}>{sensorOffline ? "No live data" : <span className="font-bitcount-grid-single">{evaluation.score}/100</span>}</Badge>
-              </div>
-              <p className="mt-3 text-white/70 max-w-md">
-                {sensorOffline
-                  ? "The pond condition cannot be confirmed until fresh sensor readings arrive."
-                  : evaluation.issues.length === 0 ? "All parameters are within optimal range." : evaluation.issues.join(" · ")}
-              </p>
-              {latest && <div className="text-xs text-white/50 mt-4 font-mono">Last reading · {format(new Date(latest.recorded_at), "MMM d, HH:mm")}</div>}
+      <Card className="relative mb-6 w-full overflow-hidden border-0 text-white" style={{ background: "var(--gradient-deep)" }}>
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,hsl(188_85%_55%/0.3),transparent_50%)]" />
+        <div className="relative p-5 text-white sm:p-8">
+          <div className="max-w-lg">
+            <div className="flex items-center gap-2 text-white/70 text-sm mb-2">
+              <Waves className="h-4 w-4" /> Overall Pond Condition
             </div>
+            <div className="flex items-baseline gap-4">
+              <div className="font-coolvetica text-5xl font-semibold capitalize">{dashboardStatus}</div>
+              <Badge className={statusColor + " border-0"}>{sensorOffline ? "No live data" : <span className="font-bitcount-grid-single">{evaluation.score}/100</span>}</Badge>
+            </div>
+            <p className="mt-3 text-white/70 max-w-md">
+              {sensorOffline
+                ? "The pond condition cannot be confirmed until fresh sensor readings arrive."
+                : evaluation.issues.length === 0 ? "All parameters are within optimal range." : evaluation.issues.join(" · ")}
+            </p>
           </div>
-          <div className="grid grid-cols-2 gap-3 bg-card p-4 sm:p-6">
-            <MiniStat icon={Fish} label="Growth records" value={growthCount.toString()} />
-            <MiniStat icon={AlertCircle} label="Active alerts" value={activeAlertCount.toString()} accent={activeAlertCount === 0 && !sensorOffline} />
-            <MiniStat icon={TrendingUp} label="Ponds" value={pondCount.toString()} />
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+            <div className="shrink-0 text-xs font-mono text-white/70">
+              Last reading · {latest ? format(new Date(latest.recorded_at), "MMM d, HH:mm") : "None yet"}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <MiniStat icon={Fish} label="Growth records" value={growthCount.toString()} />
+              <MiniStat icon={AlertCircle} label="Active alerts" value={activeAlertCount.toString()} accent={activeAlertCount === 0 && !sensorOffline} />
+              <MiniStat icon={TrendingUp} label="Ponds" value={pondCount.toString()} />
+            </div>
           </div>
         </div>
       </Card>
@@ -230,36 +243,71 @@ const Dashboard = () => {
         ))}
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="font-semibold">Water Quality Trend</h3>
-              <p className="text-xs text-muted-foreground">Recent sensor readings</p>
-            </div>
+      <div className="grid gap-6 lg:grid-cols-3">
+        <section className="min-w-0 lg:col-span-2" aria-labelledby="water-quality-trends-title">
+          <div className="mb-4">
+            <h3 id="water-quality-trends-title" className="font-semibold">Water quality trends</h3>
+            <p className="text-xs text-muted-foreground">Separate scales for each parameter · latest 24 readings</p>
           </div>
           {history.length === 0 ? (
-            <EmptyState icon={Activity} title="No sensor readings available yet." description="Charts will populate as data flows in." />
+            <Card className="p-6">
+              <EmptyState icon={Activity} title="No sensor readings available yet." description="Charts will populate as data flows in." />
+            </Card>
           ) : (
-            <div className="h-72 min-h-[18rem]">
-              <div key={history[history.length - 1]?.id ?? history.length} className="h-full w-full animate-fade-in">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={history.map(h => ({ ...h, t: format(new Date(h.recorded_at), "HH:mm") }))}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="t" stroke="hsl(var(--muted-foreground))" fontSize={11} />
-                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} />
-                    <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
-                    <Line type="monotone" dataKey="do_mg_l" stroke="hsl(var(--accent))" strokeWidth={2} dot={false} name="DO" isAnimationActive animationDuration={500} animationEasing="ease-out" />
-                    <Line type="monotone" dataKey="ph" stroke="hsl(var(--success))" strokeWidth={2} dot={false} name="pH" isAnimationActive animationDuration={500} animationEasing="ease-out" />
-                    <Line type="monotone" dataKey="temperature_c" stroke="hsl(var(--warning))" strokeWidth={2} dot={false} name="Temp" isAnimationActive animationDuration={500} animationEasing="ease-out" />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+            <div key={history[history.length - 1]?.id ?? history.length} className="grid animate-fade-in gap-4 sm:grid-cols-2">
+              {chartSeries.map(series => {
+                const hasReadings = chartData.some(reading => reading[series.key] != null);
+
+                return (
+                  <Card key={series.key} className="min-w-0 p-4">
+                    <div className="mb-2 flex items-center justify-between gap-3">
+                      <h4 className="truncate text-sm font-medium">{series.name}</h4>
+                      {series.unit && <span className="shrink-0 text-xs text-muted-foreground">{series.unit}</span>}
+                    </div>
+                    {hasReadings ? (
+                      <div className="h-48 min-w-0">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+                            <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                            <XAxis dataKey="time" stroke="hsl(var(--muted-foreground))" fontSize={10} minTickGap={20} />
+                            <YAxis
+                              stroke="hsl(var(--muted-foreground))"
+                              fontSize={10}
+                              width={42}
+                              tickCount={4}
+                              tickFormatter={value => Number(value).toFixed(series.decimals)}
+                            />
+                            <Tooltip
+                              contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }}
+                              formatter={value => [`${Number(value).toFixed(2)}${series.unit ? ` ${series.unit}` : ""}`, series.name]}
+                            />
+                            <Line
+                              type="monotone"
+                              dataKey={series.key}
+                              name={series.name}
+                              stroke={series.color}
+                              strokeWidth={2}
+                              dot={false}
+                              isAnimationActive
+                              animationDuration={500}
+                              animationEasing="ease-out"
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    ) : (
+                      <div className="grid h-48 place-items-center rounded-lg bg-secondary/30 px-4 text-center text-xs text-muted-foreground">
+                        No {series.name.toLowerCase()} readings in this period.
+                      </div>
+                    )}
+                  </Card>
+                );
+              })}
             </div>
           )}
-        </Card>
+        </section>
 
-        <Card className="p-6">
+        <Card className="min-w-0 p-6">
           <h3 className="font-semibold mb-1">Alerts & Recommendations</h3>
           <p className="text-xs text-muted-foreground mb-4">Current incidents across the pond</p>
           {alerts.length === 0 && !sensorOffline ? (
@@ -308,9 +356,10 @@ type MiniStatProps = {
 };
 
 const MiniStat = ({ icon: Icon, label, value, accent }: MiniStatProps) => (
-  <div className="rounded-xl p-3 bg-secondary/40">
-    <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground"><Icon className="h-3 w-3" />{label}</div>
-    <div className={`mt-1.5 font-bitcount-grid-single font-semibold ${accent ? "text-success" : ""}`}>{value}</div>
+  <div className="flex h-8 items-center gap-2 rounded-lg border border-white/50 bg-gradient-to-br from-white/50 to-white/20 px-2.5 shadow-lg backdrop-blur-xl">
+    <Icon className="h-3 w-3 shrink-0 text-sky-900" aria-hidden="true" />
+    <span className="text-[10px] uppercase tracking-wider text-slate-700">{label}</span>
+    <span className={`font-bitcount-grid-single text-xs font-semibold ${accent ? "text-success" : "text-slate-950"}`}>{value}</span>
   </div>
 );
 

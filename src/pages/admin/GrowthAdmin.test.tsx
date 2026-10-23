@@ -43,7 +43,7 @@ describe("Growth Records summaries", () => {
     fireEvent.click(screen.getAllByText("Details")[1]);
     expect(screen.getByText(/Regular feed/)).toBeVisible();
     expect(screen.getByText(/5.50 mg\/L \(3\)/)).toBeVisible();
-    expect(screen.getByRole("button", { name: /Export growth CSV/i })).toBeVisible();
+    expect(screen.queryByRole("button", { name: /Export growth CSV/i })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Add measurement/i })).toBeVisible();
   });
 });

@@ -33,7 +33,7 @@ const AlertListFilters = ({
   ];
   const filterButtonClass = (active: boolean) => `h-9 gap-2 whitespace-nowrap rounded-md px-3.5 text-sm shadow-none transition-colors ${active
     ? "border-blue-600 bg-blue-600 text-white hover:border-blue-700 hover:bg-blue-700 hover:text-white dark:border-cyan-400 dark:bg-cyan-400 dark:text-slate-950 dark:hover:border-cyan-300 dark:hover:bg-cyan-300 dark:hover:text-slate-950"
-    : "border-border bg-background text-foreground hover:border-primary/40 hover:bg-muted/60"
+    : "border-border bg-background text-foreground hover:border-blue-600 hover:bg-blue-600 hover:text-white dark:hover:border-cyan-400 dark:hover:bg-cyan-400 dark:hover:text-slate-950"
     }`;
 
   return (

@@ -57,7 +57,7 @@ const Alerts = () => {
             </div>
             {history.alerts.map(alert => (
               <AlertIncidentCard key={alert.id} alert={alert} canAcknowledge={canAcknowledge && history.ageView === "recent"}
-                acknowledging={acknowledgingId === alert.id} useCoolveticaForStatus useBitcountGridForReading
+                acknowledging={acknowledgingId === alert.id} showSeverityAccent={false} useCoolveticaForStatus useBitcountGridForReading
                 onAcknowledge={() => void acknowledge(alert.id)} />
             ))}
             <AlertPagination page={history.page} total={history.total} onPageChange={history.setPage} />

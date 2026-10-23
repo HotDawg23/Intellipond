@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { format } from "date-fns";
-import { Archive, Download, Fish, Plus } from "lucide-react";
+import { Archive, Fish, Plus } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { EmptyState, PageHeader } from "@/components/Common";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { downloadGrowthRecordsCsv, type GrowthWaterAveragesRecord } from "@/lib/growth-records-export";
+import type { GrowthWaterAveragesRecord } from "@/lib/growth-records-export";
 import { formatStockingDensity } from "@/lib/stocking-density";
 import { toast } from "sonner";
 
@@ -56,7 +56,6 @@ const GrowthAdmin = () => {
   const [batches, setBatches] = useState<FishBatch[]>([]);
   const [batchOpen, setBatchOpen] = useState(false);
   const [recordOpen, setRecordOpen] = useState(false);
-  const [exporting, setExporting] = useState(false);
   const [savingStockedCount, setSavingStockedCount] = useState(false);
   const [editingBatch, setEditingBatch] = useState<FishBatch | null>(null);
   const [stockedFishCountInput, setStockedFishCountInput] = useState("");
@@ -107,19 +106,6 @@ const GrowthAdmin = () => {
       .subscribe();
     return () => { void supabase.removeChannel(channel); };
   }, [load]);
-
-  const exportGrowthCsv = async () => {
-    setExporting(true);
-    try {
-      const count = await downloadGrowthRecordsCsv();
-      if (count === 0) toast.error("No growth records to export");
-      else toast.success(`Exported ${count} growth record${count === 1 ? "" : "s"}`);
-    } catch (error) {
-      toast.error(`Could not export growth records: ${error instanceof Error ? error.message : "unknown error"}`);
-    } finally {
-      setExporting(false);
-    }
-  };
 
   const createBatch = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -218,9 +204,6 @@ const GrowthAdmin = () => {
         subtitle="Manage Bangus stocking batches and record fish measurements."
         actions={
           <>
-            <Button variant="outline" onClick={() => void exportGrowthCsv()} disabled={exporting}>
-              <Download className="mr-2 h-4 w-4" />{exporting ? "Exporting…" : "Export growth CSV"}
-            </Button>
             <Dialog open={batchOpen} onOpenChange={setBatchOpen}>
               <DialogTrigger asChild><Button variant="outline"><Plus className="mr-2 h-4 w-4" />New batch</Button></DialogTrigger>
               <DialogContent className="max-h-[90vh] overflow-y-auto">
