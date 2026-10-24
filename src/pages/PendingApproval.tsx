@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Clock, LogOut, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import BrandMark from "@/components/BrandMark";
+import { PublicThemeControl } from "@/components/ThemeControl";
 
 const PendingApproval = () => {
   const { user, approved, role, signOut, loading } = useAuth();
@@ -28,6 +29,8 @@ const PendingApproval = () => {
   };
 
   return (
+    <>
+    <PublicThemeControl />
     <div className="min-h-screen grid place-items-center bg-background p-4 sm:p-6">
       <Card className="w-full max-w-md border-border/60 p-6 text-center shadow-soft sm:p-8">
         <BrandMark className="mx-auto h-14 w-14 rounded-2xl mb-4" />
@@ -49,6 +52,7 @@ const PendingApproval = () => {
         </div>
       </Card>
     </div>
+    </>
   );
 };
 export default PendingApproval;

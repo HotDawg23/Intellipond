@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { ArrowLeft, LoaderCircle } from "lucide-react";
 import authBackgroundImg from "@/assets/auth-dashboard-bg.png";
 import BrandMark from "@/components/BrandMark";
+import { PublicThemeControl } from "@/components/ThemeControl";
 
 const Auth = () => {
   const nav = useNavigate();
@@ -48,6 +49,8 @@ const Auth = () => {
   };
 
   return (
+    <>
+    <PublicThemeControl />
     <div className="auth-page grid min-h-screen w-full min-w-0 grid-cols-1 lg:grid-cols-2">
       <div className="relative hidden lg:block overflow-hidden gradient-deep">
         <img src={authBackgroundImg} alt="" className="absolute inset-0 h-full w-full object-cover opacity-10" />
@@ -61,9 +64,9 @@ const Auth = () => {
               <span className="font-semibold text-lg">IntelliPond</span>
             </div>
             <h2 className="text-4xl font-semibold leading-tight max-w-md">Real-time intelligence for Bangus aquaculture.</h2>
-            <p className="mt-4 text-white/70 max-w-md">Monitor water quality and growth in one clear operator console.</p>
+            <p className="mt-4 text-white/90 max-w-md">Monitor water quality and growth in one clear operator console.</p>
           </div>
-          <div className="text-xs text-white/50">CAPSTONE PROJECT S.Y. 2026-2027 | DELTAFORCE</div>
+          <div className="text-xs text-white/90">CAPSTONE PROJECT S.Y. 2026-2027 | DELTAFORCE</div>
         </div>
       </div>
       <div className="flex w-full min-w-0 items-center justify-center bg-background p-4 sm:p-6 lg:p-12">
@@ -103,6 +106,7 @@ const Auth = () => {
         </Card>
       </div>
     </div>
+    </>
   );
 };
 export default Auth;

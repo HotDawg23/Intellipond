@@ -3,6 +3,7 @@ import { addDays, format, startOfDay, subDays } from "date-fns";
 import { Link } from "react-router-dom";
 import { AlertCircle, ArrowLeft, ArrowRight, ArrowUpRight, Bell, Database, Fish, Waves, Users } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
+import { AnimatedNumber } from "@/components/AnimatedNumber";
 import { PageHeader } from "@/components/Common";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -59,7 +60,7 @@ const formatMetric = (label: string, value: number | null, unit: string) =>
 const severityClass = (severity: string) => {
   const normalized = severity.toLowerCase();
   if (normalized === "critical" || normalized === "high") {
-    return "border-destructive/30 bg-destructive/10 text-destructive";
+    return "border-destructive/30 bg-destructive/10 text-destructive-text";
   }
   if (normalized === "warning" || normalized === "medium") {
     return "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300";
@@ -97,7 +98,7 @@ const AdminOverview = () => {
           const end = addDays(day, 1).toISOString();
           const [readings, alerts] = await Promise.all([
             supabase.from("sensor_readings").select("id", { count: "exact", head: true }).gte("recorded_at", start).lt("recorded_at", end).lte("recorded_at", nowIso),
-            supabase.from("alerts").select("id", { count: "exact", head: true }).gte("created_at", start).lt("created_at", end).lte("created_at", nowIso),
+            supabase.from("alerts").select("id", { count: "exact", head: true }).neq("status", "legacy_archived").gte("created_at", start).lt("created_at", end).lte("created_at", nowIso),
           ]);
           if (readings.error) throw readings.error;
           if (alerts.error) throw alerts.error;
@@ -201,6 +202,7 @@ const AdminOverview = () => {
       try {
         const result = await supabase.from("alerts")
           .select("id,created_at,last_sensor_value,sensor_type,condition_key,category,severity,message,acknowledged,status,pond_profiles(name)", { count: "exact" })
+          .neq("status", "legacy_archived")
           .gte("created_at", new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString())
           .lte("created_at", now.toISOString())
           .order("created_at", { ascending: false })
@@ -228,7 +230,7 @@ const AdminOverview = () => {
   const tiles = [
     { icon: Waves, label: "Pond profiles", value: counts?.ponds, detail: "Registered pond profiles", href: "/admin/ponds", tone: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-300" },
     { icon: Database, label: "Sensor readings", value: counts?.readings, detail: "All recorded measurements", href: "/admin/sensors", tone: "bg-sky-500/10 text-sky-600 dark:text-sky-300" },
-    { icon: Bell, label: "Active alerts", value: counts?.alerts, detail: counts ? counts.openAlerts.toLocaleString() + " unacknowledged · " + counts.olderAlerts.toLocaleString() + " older alerts" : "Incident totals", href: "/admin/alerts", tone: "bg-amber-500/10 text-amber-600 dark:text-amber-300" },
+    { icon: Bell, label: "Active alerts", value: counts?.alerts, detail: counts ? <><span>{counts.openAlerts.toLocaleString()} unacknowledged</span><span className="block sm:inline"><span className="hidden sm:inline"> · </span>{counts.olderAlerts.toLocaleString()} older alerts</span></> : "Incident totals", href: "/admin/alerts", tone: "bg-amber-500/10 text-amber-600 dark:text-amber-300" },
     { icon: Fish, label: "Growth records", value: counts?.growth, detail: "Fish measurements logged", href: "/admin/growth", tone: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-300" },
     { icon: Users, label: "Users", value: counts?.users, detail: "Registered user profiles", href: "/admin/users", tone: "bg-violet-500/10 text-violet-600 dark:text-violet-300" },
   ];
@@ -243,18 +245,18 @@ const AdminOverview = () => {
       <PageHeader title="Admin Console" subtitle="System-wide visibility for IntelliPond." />
 
       {error && (
-        <Card className="mb-5 border-destructive/40 p-4 text-sm text-destructive" role="alert">
+        <Card className="mb-5 border-destructive/40 p-4 text-sm text-destructive-text" role="alert">
           Could not load all overview data: {error}
         </Card>
       )}
 
       <section aria-label="System totals" className="mb-8">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
           {tiles.map(tile => (
             <Link
               key={tile.label}
               to={tile.href}
-              className="group block h-full rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              className={`group block h-full rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${tile.label === "Sensor readings" ? "order-first col-span-2 sm:order-none sm:col-span-1" : ""}`}
             >
               <Card className="h-full border-border/80 p-4 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:border-accent/50 group-hover:shadow-md sm:p-5">
                 <div className="flex items-start justify-between gap-3">
@@ -265,7 +267,11 @@ const AdminOverview = () => {
                 </div>
                 <div className="mt-4 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">{tile.label}</div>
                 <div className="mt-1 font-mono text-3xl font-semibold tabular-nums">
-                  {loading ? "—" : counts ? (tile.value ?? 0).toLocaleString() : "—"}
+                  {loading || !counts ? "—" : (
+                    <span className="inline-block motion-safe:animate-[metric-number-enter_450ms_ease-out_both]">
+                      <AnimatedNumber value={tile.value ?? 0} startAtZero />
+                    </span>
+                  )}
                 </div>
                 <p className="mt-2 min-h-5 text-xs text-muted-foreground">{tile.detail}</p>
               </Card>
@@ -300,11 +306,17 @@ const AdminOverview = () => {
                       <span className="text-sm font-semibold tabular-nums">{series.total.toLocaleString()} <span className="font-normal text-muted-foreground">total</span></span>
                     </div>
                     <div className="grid grid-cols-7 gap-2" role="list" aria-label={`${series.title} per day`}>
-                      {activityDays.map(day => (
+                      {activityDays.map((day, index) => (
                         <div key={day.date} role="listitem" className="min-w-0 text-center" aria-label={`${day.label}: ${day[series.key]} ${series.title.toLowerCase()}`}>
                           <span className="block text-xs font-medium tabular-nums">{day[series.key].toLocaleString()}</span>
                           <div className="mt-2 flex h-28 items-end rounded-md bg-muted/50 sm:h-32">
-                            <div className={`w-full rounded-md ${series.color}`} style={{ height: day[series.key] ? `${Math.max(8, day[series.key] / series.max * 100)}%` : "0%" }} />
+                            <div
+                              className={`w-full origin-bottom rounded-md motion-safe:animate-[activity-bar-grow_550ms_ease-out_both] ${series.color}`}
+                              style={{
+                                height: day[series.key] ? `${Math.max(8, day[series.key] / series.max * 100)}%` : "0%",
+                                animationDelay: `${index * 55 + (series.key === "alerts" ? 100 : 0)}ms`,
+                              }}
+                            />
                           </div>
                           <span className="mt-2 block truncate text-[10px] text-muted-foreground sm:text-xs" aria-hidden="true">{day.date}</span>
                         </div>

@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { format } from "date-fns";
-import { Archive, Fish, Plus } from "lucide-react";
+import { Archive, ChevronDown, Fish, Plus } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
-import { EmptyState, PageHeader } from "@/components/Common";
+import { EmptyState, PageHeader, LoadingState, LoadError } from "@/components/Common";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -54,6 +55,8 @@ const GrowthAdmin = () => {
   const [records, setRecords] = useState<GrowthRecord[]>([]);
   const [ponds, setPonds] = useState<Pond[]>([]);
   const [batches, setBatches] = useState<FishBatch[]>([]);
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const [loadError, setLoadError] = useState("");
   const [batchOpen, setBatchOpen] = useState(false);
   const [recordOpen, setRecordOpen] = useState(false);
   const [savingStockedCount, setSavingStockedCount] = useState(false);
@@ -71,7 +74,9 @@ const GrowthAdmin = () => {
   );
 
   const load = useCallback(async () => {
-    const [growthResult, batchResult, pondResult] = await Promise.all([
+    setLoadError("");
+    try {
+      const [growthResult, batchResult, pondResult] = await Promise.all([
       supabase.from("growth_records_with_water_averages")
         .select("*")
         .order("recorded_at", { ascending: false })
@@ -81,9 +86,9 @@ const GrowthAdmin = () => {
         .order("stocking_date", { ascending: false }),
       supabase.from("pond_profiles").select("id,name,area_sqm").order("name"),
     ]);
-    if (growthResult.error) toast.error(`Could not load growth records: ${growthResult.error.message}`);
-    if (batchResult.error) toast.error(`Could not load fish batches: ${batchResult.error.message}`);
-    if (pondResult.error) toast.error(`Could not load ponds: ${pondResult.error.message}`);
+      if (growthResult.error) throw growthResult.error;
+      if (batchResult.error) throw batchResult.error;
+      if (pondResult.error) throw pondResult.error;
     setRecords(growthResult.data ?? []);
     setBatches((batchResult.data ?? []) as unknown as FishBatch[]);
     setPonds(pondResult.data ?? []);
@@ -96,6 +101,10 @@ const GrowthAdmin = () => {
       if (defaultBatch) {
         setRecordForm(current => current.fish_batch_id ? current : { ...current, fish_batch_id: defaultBatch.id });
       }
+    }
+    setHasLoaded(true);
+    } catch (error) {
+      setLoadError(`Could not load growth records: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
   }, []);
 
@@ -244,7 +253,7 @@ const GrowthAdmin = () => {
                   </div>
                   <p className="text-xs text-muted-foreground">Enter at least one starting measurement. The estimate uses the available measurement as its baseline.</p>
                   <Button className="w-full" type="submit" disabled={!ponds.length}>Save batch</Button>
-                  {!ponds.length && <p className="text-sm text-destructive">Add a pond before registering a fish batch.</p>}
+                  {!ponds.length && <p className="text-sm text-destructive-text">Add a pond before registering a fish batch.</p>}
                 </form>
               </DialogContent>
             </Dialog>
@@ -331,6 +340,10 @@ const GrowthAdmin = () => {
         </DialogContent>
       </Dialog>
 
+      {loadError && <div className="mb-5"><LoadError message={loadError} onRetry={() => void load()} /></div>}
+      {!hasLoaded ? (
+        loadError ? null : <Card><LoadingState label="Loading growth records" /></Card>
+      ) : <>
       <section className="mb-6 space-y-3" aria-labelledby="batches-heading">
         <div>
           <h2 id="batches-heading" className="text-lg font-semibold">Fish batches</h2>
@@ -351,7 +364,7 @@ const GrowthAdmin = () => {
                       <h3 className="font-semibold">{batch.batch_name}</h3>
                       <p className="text-sm text-muted-foreground">{batch.pond_profiles?.name ?? "Pond unavailable"}</p>
                     </div>
-                    <Badge variant={batch.is_active ? "default" : "secondary"}>{batch.is_active ? "Active" : "Closed"}</Badge>
+                    <Badge variant={batch.is_active ? "default" : "secondary"} className={batch.is_active ? "hover:bg-primary" : "hover:bg-secondary"}>{batch.is_active ? "Active" : "Closed"}</Badge>
                   </div>
                   <p className="mt-3 text-sm text-muted-foreground">Stocked {format(new Date(`${batch.stocking_date}T00:00:00`), "MMM d, yyyy")}</p>
                   <div className="mt-3 grid grid-cols-2 gap-3 border-t border-border pt-3 text-sm sm:grid-cols-4">
@@ -360,15 +373,20 @@ const GrowthAdmin = () => {
                     <div><p className="text-xs text-muted-foreground">Latest weight</p><p className="font-medium">{latestWeight ? `${latestWeight.avg_weight_g} g` : "No sample"}</p></div>
                     <div><p className="text-xs text-muted-foreground">Latest length</p><p className="font-medium">{latestLength ? `${latestLength.avg_length_cm} cm` : "No sample"}</p></div>
                   </div>
-                  <details className="mt-3 border-t border-border pt-3 text-sm">
-                    <summary className="cursor-pointer font-medium text-primary">Starting measurements and details</summary>
-                    <div className="mt-3 space-y-1 text-muted-foreground">
-                      <p>Starting weight: {batch.initial_weight_g != null ? `${batch.initial_weight_g} g` : "Not recorded"}</p>
-                      <p>Starting length: {batch.initial_length_cm != null ? `${batch.initial_length_cm} cm` : "Not recorded"}</p>
-                      <p>Density uses the pond’s recorded area and the initial fish count. It does not represent surviving fish.</p>
-                      {!density && <p>{batch.stocked_fish_count == null ? "Enter a fish count to calculate density." : "Record the pond area to calculate density."}</p>}
-                    </div>
-                  </details>
+                  <Collapsible className="mt-3 border-t border-border pt-3 text-sm">
+                    <CollapsibleTrigger className="group flex w-full items-center justify-between gap-2 text-left font-medium text-primary">
+                      <span>Starting measurements and details</span>
+                      <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-180 motion-reduce:transition-none" aria-hidden="true" />
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="overflow-hidden data-[state=open]:animate-[batch-details-open_180ms_ease-out] data-[state=closed]:animate-[batch-details-close_180ms_ease-out] motion-reduce:animate-none">
+                      <div className="mt-3 space-y-1 text-muted-foreground">
+                        <p>Starting weight: {batch.initial_weight_g != null ? `${batch.initial_weight_g} g` : "Not recorded"}</p>
+                        <p>Starting length: {batch.initial_length_cm != null ? `${batch.initial_length_cm} cm` : "Not recorded"}</p>
+                        <p>Density uses the pond’s recorded area and the initial fish count. It does not represent surviving fish.</p>
+                        {!density && <p>{batch.stocked_fish_count == null ? "Enter a fish count to calculate density." : "Record the pond area to calculate density."}</p>}
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Button variant="outline" size="sm" onClick={() => { setStockedFishCountInput(batch.stocked_fish_count?.toString() ?? ""); setEditingBatch(batch); }}>
                       {batch.stocked_fish_count == null ? "Enter fish count" : "Edit count"}
@@ -414,25 +432,31 @@ const GrowthAdmin = () => {
                   <div className="flex justify-between gap-2 sm:block"><span className="text-muted-foreground">Length</span><span className="font-medium sm:block">{record.avg_length_cm != null ? `${record.avg_length_cm} cm` : "Not recorded"}</span></div>
                   <div className="flex justify-between gap-2 sm:block"><span className="text-muted-foreground">Status</span><span className="font-medium sm:block">{record.growth_status ?? "Not set"}</span></div>
                 </div>
-                <details className="mt-3 border-t border-border pt-3 text-sm">
-                  <summary className="cursor-pointer font-medium text-primary">Details</summary>
-                  <div className="mt-3 grid gap-3 text-muted-foreground sm:grid-cols-2 lg:grid-cols-3">
-                    <p><span className="font-medium text-foreground">Age:</span> {record.age_days != null ? `${record.age_days} days` : "Not recorded"}</p>
-                    <p><span className="font-medium text-foreground">DO:</span> {displayWaterAverage(record.avg_do_mg_l, record.do_reading_count, "mg/L")}</p>
-                    <p><span className="font-medium text-foreground">pH:</span> {displayWaterAverage(record.avg_ph, record.ph_reading_count, "")}</p>
-                    <p><span className="font-medium text-foreground">Temperature:</span> {displayWaterAverage(record.avg_temperature_c, record.temperature_reading_count, "°C")}</p>
-                    <p><span className="font-medium text-foreground">Turbidity:</span> {displayWaterAverage(record.avg_turbidity_ntu, record.turbidity_reading_count, "NTU")}</p>
-                    <p><span className="font-medium text-foreground">Average window:</span> {displayDate(record.average_start_date)} – {displayDate(record.average_end_date)}</p>
-                    <p><span className="font-medium text-foreground">Feeding notes:</span> {record.feeding_notes || "None"}</p>
-                    <p><span className="font-medium text-foreground">Pond condition:</span> {record.pond_condition || "None"}</p>
-                  </div>
-                  <p className="mt-3 text-xs text-muted-foreground">Water averages use readings from this pond between the prior sampling date (or stocking) and this measurement. Parentheses show each non-null reading count; current-day averages may update.</p>
-                </details>
+                <Collapsible className="mt-3 border-t border-border pt-3 text-sm">
+                  <CollapsibleTrigger className="group flex w-full items-center justify-between gap-2 text-left font-medium text-primary">
+                    <span>Details</span>
+                    <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-180 motion-reduce:transition-none" aria-hidden="true" />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="overflow-hidden data-[state=open]:animate-[batch-details-open_180ms_ease-out] data-[state=closed]:animate-[batch-details-close_180ms_ease-out] motion-reduce:animate-none">
+                    <div className="mt-3 grid gap-3 text-muted-foreground sm:grid-cols-2 lg:grid-cols-3">
+                      <p><span className="font-medium text-foreground">Age:</span> {record.age_days != null ? `${record.age_days} days` : "Not recorded"}</p>
+                      <p><span className="font-medium text-foreground">DO:</span> {displayWaterAverage(record.avg_do_mg_l, record.do_reading_count, "mg/L")}</p>
+                      <p><span className="font-medium text-foreground">pH:</span> {displayWaterAverage(record.avg_ph, record.ph_reading_count, "")}</p>
+                      <p><span className="font-medium text-foreground">Temperature:</span> {displayWaterAverage(record.avg_temperature_c, record.temperature_reading_count, "°C")}</p>
+                      <p><span className="font-medium text-foreground">Turbidity:</span> {displayWaterAverage(record.avg_turbidity_ntu, record.turbidity_reading_count, "NTU")}</p>
+                      <p><span className="font-medium text-foreground">Average window:</span> {displayDate(record.average_start_date)} – {displayDate(record.average_end_date)}</p>
+                      <p><span className="font-medium text-foreground">Feeding notes:</span> {record.feeding_notes || "None"}</p>
+                      <p><span className="font-medium text-foreground">Pond condition:</span> {record.pond_condition || "None"}</p>
+                    </div>
+                    <p className="mt-3 text-xs text-muted-foreground">Water averages use readings from this pond between the prior sampling date (or stocking) and this measurement. Parentheses show each non-null reading count; current-day averages may update.</p>
+                  </CollapsibleContent>
+                </Collapsible>
               </Card>
             ))}
           </div>
         )}
       </section>
+      </>}
     </AppShell>
   );
 };

@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { ArrowLeft, MailCheck } from "lucide-react";
 import heroImg from "@/assets/hero-water.jpg";
 import BrandMark from "@/components/BrandMark";
+import { PublicThemeControl } from "@/components/ThemeControl";
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState("");
@@ -31,6 +32,8 @@ const ForgotPassword = () => {
   };
 
   return (
+    <>
+    <PublicThemeControl />
     <div className="grid min-h-screen w-full min-w-0 grid-cols-1 lg:grid-cols-2">
       <div className="relative hidden lg:block overflow-hidden">
         <img src={heroImg} alt="" className="absolute inset-0 h-full w-full object-cover" />
@@ -45,9 +48,9 @@ const ForgotPassword = () => {
               <span className="font-semibold text-lg">IntelliPond</span>
             </div>
             <h2 className="text-4xl font-semibold leading-tight max-w-md">Reset your password.</h2>
-            <p className="mt-4 text-white/70 max-w-md">We'll email you a secure link so you can choose a new password.</p>
+            <p className="mt-4 text-white/90 max-w-md">We'll email you a secure link so you can choose a new password.</p>
           </div>
-          <div className="text-xs text-white/50">Capstone research platform · IoT sensors</div>
+          <div className="text-xs text-white/90">Capstone research platform · IoT sensors</div>
         </div>
       </div>
       <div className="flex w-full min-w-0 items-center justify-center bg-background p-4 sm:p-6 lg:p-12">
@@ -83,6 +86,7 @@ const ForgotPassword = () => {
         </Card>
       </div>
     </div>
+    </>
   );
 };
 export default ForgotPassword;

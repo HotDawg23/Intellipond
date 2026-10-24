@@ -83,14 +83,16 @@ describe("growth records CSV", () => {
   });
 
   it("escapes formula-leading text for spreadsheet safety", () => {
-    const record = {
-      id: "growth-2",
-      pond_condition: "=SUM(1,1)",
-    } as GrowthWaterAveragesRecord;
-    const [headers, row] = parseCsv(buildGrowthRecordsCsv([record]));
-    const conditionIndex = headers.indexOf("pond_condition");
+    for (const formulaText of ["=SUM(1,1)", " \u0000=SUM(1,1)"]) {
+      const record = {
+        id: "growth-2",
+        pond_condition: formulaText,
+      } as GrowthWaterAveragesRecord;
+      const [headers, row] = parseCsv(buildGrowthRecordsCsv([record]));
+      const conditionIndex = headers.indexOf("pond_condition");
 
-    expect(row[conditionIndex]).toBe("'=SUM(1,1)");
+      expect(row[conditionIndex]).toBe(`'${formulaText}`);
+    }
   });
 
   it("exports unavailable averages as blank cells with zero counts", () => {

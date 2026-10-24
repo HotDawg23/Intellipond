@@ -59,6 +59,40 @@ python ml/train_growth_model.py --bfar-csv /path/to/bfar_growth.csv
 
 The generated artifact is `public/growth-model.json`.
 
+## Private BFAR candidate comparison
+
+A private BFAR fingerling workbook was summarized into pond/date means outside
+this repository. Its source, dates, units, conversions, and evaluation are
+documented in the private report beside the CSV. The BFAR length field is total
+length; the WorldFish report calls its field body length without specifying its
+length convention, so the measurements may not be directly equivalent. DOC is
+provisionally interpreted as days since stocking; confirm that interpretation
+and the length definition with BFAR before treating this as a validated source.
+
+From the application repository, regenerate the private candidate and a
+comparison report (replace the paths with the locations of your private files):
+
+```sh
+python ml/train_growth_model.py --bfar-csv ../bfar_growth_training_data.csv --output ../bfar_growth_model_candidate.json
+python ml/compare_growth_models.py --bfar-csv ../bfar_growth_training_data.csv --output ../bfar_growth_comparison.json
+```
+
+The comparison holds out whole pond cohorts and uses the same observed
+intervals for the WorldFish-only and pooled candidates, unchanged-value
+baseline, and recent-growth baseline. It also evaluates a BFAR-only rate model
+on the BFAR fingerling intervals. Compare `paired_mae` values when judging the
+recent-growth baseline, because it requires a prior interval. These results
+measure 13- to 127-day intervals, **not** seven-day forecast accuracy.
+
+With the available six BFAR means, the pooled candidate has higher overall
+held-out error than the WorldFish-only approach for both weight and length.
+The BFAR-only model improves length on the four fingerling intervals but worsens
+weight against the pooled candidate. Two ponds from one culture cycle cannot
+establish a reliable fingerling model, and there are no exact seven-day BFAR
+pairs. Keep the published model and its Research estimate label until
+independent cycles support a replacement and the existing seven-day validation
+rule can be evaluated. Do not call the reference range a confidence interval.
+
 ## Growth records and water averages
 
 The Growth Records export includes same-pond DO, pH, temperature, and turbidity

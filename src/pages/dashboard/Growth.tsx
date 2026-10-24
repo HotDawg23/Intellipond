@@ -45,6 +45,7 @@ const Growth = () => {
   const [model, setModel] = useState<GrowthReferenceModel | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [dataError, setDataError] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -69,7 +70,10 @@ const Growth = () => {
       setModel(loadedModel);
       if (!loadedModel) setError("Growth reference model could not be loaded. Recorded measurements are still available.");
     }).catch(loadError => {
-      if (mounted) setError(loadError?.message ?? "Could not load growth forecasts.");
+      if (mounted) {
+        setDataError(true);
+        setError(loadError?.message ?? "Could not load growth forecasts.");
+      }
     }).finally(() => {
       if (mounted) setLoading(false);
     });
@@ -88,10 +92,10 @@ const Growth = () => {
   return (
     <AppShell>
       <PageHeader title="Growth Monitoring" subtitle="Follow measured Bangus growth and a seven-day research estimate." />
-      {error && <Card className="mb-5 border-destructive/40 p-4 text-sm text-destructive" role="alert">{error}</Card>}
+      {error && <Card className="mb-5 border-destructive/40 p-4 text-sm text-destructive-text" role="alert">{error}</Card>}
       {loading ? (
         <Card className="p-6 text-sm text-muted-foreground" role="status">Loading growth records…</Card>
-      ) : batches.length === 0 ? (
+      ) : dataError ? null : batches.length === 0 ? (
         <Card className="p-6">
           <EmptyState icon={Fish} title="No active fish batch yet" description="An administrator can add a batch and its starting measurement in Growth Records." />
           {role === "admin" && <div className="mt-4 text-center"><Button asChild><Link to="/admin/growth">Set up a fish batch</Link></Button></div>}
@@ -110,7 +114,11 @@ const Growth = () => {
           </section>
           <Card className="overflow-hidden p-5 sm:p-6">
             <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border pb-4">
-              <div><h3 className="text-lg font-semibold">{selectedBatch.batch_name}</h3><p className="text-sm text-muted-foreground">{selectedBatch.pond_profiles?.name ?? "Pond"} · stocked {formatDate(selectedBatch.stocking_date)}</p></div>
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-primary">{selectedBatch.batch_name}</p>
+                <h3 className="mt-1 text-xl font-semibold">{model?.target_horizon_days ?? 7}-day growth estimate</h3>
+                <p className="mt-1 text-sm text-muted-foreground">Projected averages from the latest measurements · {selectedBatch.pond_profiles?.name ?? "Pond"} · stocked {formatDate(selectedBatch.stocking_date)}</p>
+              </div>
               <Badge variant="outline" className={validatedOnBfar ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300"}>
                 {!model ? "Estimate unavailable" : validatedOnBfar ? "Checked on BFAR batches" : "Research estimate"}
               </Badge>
@@ -130,7 +138,7 @@ const Growth = () => {
             </details>
           </Card>
           <section aria-labelledby="growth-history-heading">
-            <div className="mb-3"><h2 id="growth-history-heading" className="text-lg font-semibold">Measured growth</h2><p className="text-sm text-muted-foreground">Actual samples from {selectedBatch.batch_name}; each chart has its own unit.</p></div>
+            <div className="mb-3"><h2 id="growth-history-heading" className="text-lg font-semibold">Measured growth</h2><p className="text-sm text-muted-foreground">These charts show actual samples from {selectedBatch.batch_name}, without the predicted values. Each chart has its own unit.</p></div>
             {batchRecords.length === 0 ? <Card className="p-5 text-sm text-muted-foreground">No follow-up measurements yet. The starting measurements above are from stocking.</Card> : (
               <div className="grid gap-4 lg:grid-cols-2">
                 <HistoryChart title="Average weight" unit="g" dataKey="avg_weight_g" records={batchRecords} />
@@ -152,17 +160,17 @@ function GrowthMetric({ label, unit, icon: Icon, baseline, metricModel, horizonD
   return <div className="rounded-xl border border-border bg-card p-4 sm:p-5">
     <div className="flex items-center gap-2 text-sm font-medium"><Icon className="h-4 w-4 text-primary" />{label}</div>
     {baseline ? <>
-      <div className="mt-4 flex flex-wrap items-end justify-between gap-3">
-        <div><p className="text-xs text-muted-foreground">Last actual value</p><p className="text-2xl font-semibold tabular-nums">{baseline.value.toFixed(2)} <span className="text-base font-normal">{unit}</span></p></div>
-        <p className="text-xs text-muted-foreground">{baseline.source === "sample" ? "Sampled" : "At stocking"} {formatDate(baseline.date)}</p>
-      </div>
-      {estimate && window.targetDate ? <div className="mt-4 rounded-lg bg-primary/5 p-3">
-        <p className="text-xs font-medium text-muted-foreground">Estimate for {formatDate(window.targetDate)}</p>
-        <p className="mt-1 text-xl font-semibold tabular-nums">{estimate.expected.toFixed(2)} <span className="text-sm font-normal">{unit}</span></p>
-        <p className="mt-1 text-xs text-muted-foreground">Reference range {estimate.low.toFixed(2)}–{estimate.high.toFixed(2)} {unit}</p>
+      {estimate && window.targetDate ? <div className="mt-4 rounded-xl border border-primary/15 bg-primary/5 p-4">
+        <p className="text-sm font-medium text-primary">Estimate for {formatDate(window.targetDate)}</p>
+        <p className="mt-2 text-3xl font-semibold tabular-nums tracking-tight sm:text-4xl">{estimate.expected.toFixed(2)} <span className="text-lg font-normal">{unit}</span></p>
+        <p className="mt-2 text-xs text-muted-foreground">Reference range: {estimate.low.toFixed(2)}–{estimate.high.toFixed(2)} {unit}</p>
       </div> : <p className="mt-4 rounded-lg bg-muted/60 p-3 text-sm text-muted-foreground" role="status">
         {!metricModel ? "Estimate unavailable; the recorded value is still shown." : window.ageDays != null && window.ageDays > horizonDays ? "New measurement needed for a forward estimate." : "Check the measurement date before forecasting."}
       </p>}
+      <div className="mt-4 flex flex-wrap items-end justify-between gap-2 border-t border-border pt-3">
+        <div><p className="text-xs text-muted-foreground">Last actual value</p><p className="text-xl font-semibold tabular-nums">{baseline.value.toFixed(2)} <span className="text-sm font-normal">{unit}</span></p></div>
+        <p className="text-xs text-muted-foreground">{baseline.source === "sample" ? "Sampled" : "At stocking"} {formatDate(baseline.date)}</p>
+      </div>
     </> : <p className="mt-4 text-sm text-muted-foreground">Add a starting or sampled {label.toLowerCase()} to see an estimate.</p>}
   </div>;
 }
@@ -177,7 +185,7 @@ function HistoryChart({ title, unit, dataKey, records }: { title: string; unit: 
         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
         <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={11} />
         <YAxis width={48} stroke="hsl(var(--muted-foreground))" fontSize={11} unit={unit} />
-        <Tooltip formatter={(value: number) => [`${value} ${unit}`, title]} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
+        <Tooltip formatter={(value: number) => [`${value} ${unit}`, title]} contentStyle={{ background: "hsl(var(--card))", color: "hsl(var(--card-foreground))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} />
         <Line type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2} dot isAnimationActive={false} />
         </LineChart></ResponsiveContainer>
       </div>

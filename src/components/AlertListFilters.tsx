@@ -96,7 +96,7 @@ const AlertListFilters = ({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All statuses</SelectItem>
+                  <SelectItem value="all">{ageView === "recent" ? "All except legacy" : "All statuses"}</SelectItem>
                   {ageView === "recent" && <SelectItem value="needs_acknowledgement">Needs acknowledgement</SelectItem>}
                   {ageView === "recent" && <SelectItem value="acknowledged">Acknowledged</SelectItem>}
                   <SelectItem value="resolved">Resolved</SelectItem>

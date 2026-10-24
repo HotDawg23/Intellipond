@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
-import { PageHeader, EmptyState } from "@/components/Common";
+import { PageHeader, EmptyState, LoadingState, LoadError } from "@/components/Common";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { MapPin, Pencil, Plus, Ruler, Trash2, Waves, X } from "lucide-react";
+import { Info, MapPin, Pencil, Plus, Ruler, Trash2, Waves, X } from "lucide-react";
 import { toast } from "sonner";
 
 type PondProfile = {
@@ -40,6 +40,8 @@ const emptyForm = (): PondForm => ({ name: "", location: "", area_sqm: "", notes
 
 const Ponds = () => {
   const [ponds, setPonds] = useState<PondProfile[]>([]);
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const [loadError, setLoadError] = useState("");
   const [open, setOpen] = useState(false);
   const [editingPond, setEditingPond] = useState<PondProfile | null>(null);
   const [pondToDelete, setPondToDelete] = useState<PondProfile | null>(null);
@@ -47,14 +49,22 @@ const Ponds = () => {
   const [deleting, setDeleting] = useState(false);
   const [form, setForm] = useState<PondForm>(emptyForm);
 
-  const load = () =>
-    supabase
-      .from("pond_profiles")
-      .select("id,name,location,area_sqm,notes")
-      .order("created_at", { ascending: false })
-      .then(({ data }) => setPonds(data ?? []));
+  const load = async () => {
+    setLoadError("");
+    try {
+      const { data, error } = await supabase
+        .from("pond_profiles")
+        .select("id,name,location,area_sqm,notes")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      setPonds(data ?? []);
+      setHasLoaded(true);
+    } catch (error) {
+      setLoadError(`Could not load pond profiles: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { void load(); }, []);
 
   const startAdd = () => {
     setDeleteMode(false);
@@ -99,7 +109,7 @@ const Ponds = () => {
     if (error) return toast.error(error.message);
     toast.success(editingPond ? "Pond updated" : "Pond added");
     handleOpenChange(false);
-    load();
+    void load();
   };
 
   const confirmDelete = async () => {
@@ -138,11 +148,11 @@ const Ponds = () => {
       />
 
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/30 px-4 py-3">
-          <span className="mt-0.5 rounded-lg bg-primary/10 p-2 text-primary">
-            <Waves className="h-4 w-4" aria-hidden="true" />
+        <div className="flex min-w-0 flex-1 items-center justify-start gap-3 py-2">
+          <span className="shrink-0 rounded-lg bg-primary/10 p-2 text-primary">
+            <Info className="h-4 w-4" aria-hidden="true" />
           </span>
-          <p className="max-w-3xl text-sm text-muted-foreground">
+          <p className="text-left text-sm text-muted-foreground">
             {deleteMode
               ? "Choose the trash icon on a pond card. We’ll ask you to confirm before removing it."
               : "Pond profiles hold site details. Stocking dates and fish counts are recorded for each batch in Growth Records."}
@@ -150,7 +160,7 @@ const Ponds = () => {
         </div>
         <div className="flex items-center gap-2">
           <span className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground">
-            {ponds.length} {ponds.length === 1 ? "pond" : "ponds"}
+            {hasLoaded ? `${ponds.length} ${ponds.length === 1 ? "pond" : "ponds"}` : "—"}
           </span>
           {ponds.length > 0 && (
             <Button
@@ -167,7 +177,10 @@ const Ponds = () => {
         </div>
       </div>
 
-      {ponds.length === 0 ? (
+      {loadError && <div className="mb-4"><LoadError message={loadError} onRetry={() => void load()} /></div>}
+      {!hasLoaded ? (
+        loadError ? null : <Card><LoadingState label="Loading pond profiles" /></Card>
+      ) : ponds.length === 0 ? (
         <Card className="p-6">
           <EmptyState icon={Waves} title="No pond profiles yet." description="Add your first pond to start monitoring." />
         </Card>
@@ -198,7 +211,7 @@ const Ponds = () => {
                         type="button"
                         variant="ghost"
                         size="icon"
-                        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        className="text-destructive-text hover:bg-destructive/10 hover:text-destructive-text"
                         onClick={() => setPondToDelete(pond)}
                         aria-label={`Delete ${pond.name}`}
                         title={`Delete ${pond.name}`}

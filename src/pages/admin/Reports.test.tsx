@@ -9,6 +9,8 @@ const state = vi.hoisted(() => ({
   reports: [] as { id: string; title: string; description: string | null; created_at: string }[],
   readings: [] as Record<string, unknown>[],
   readingsError: null as Error | null,
+  reportsError: null as Error | null,
+  resolveReports: null as null | (() => void),
 }));
 
 vi.mock("@/components/AppShell", () => ({ AppShell: ({ children }: { children: ReactNode }) => <div>{children}</div> }));
@@ -20,7 +22,11 @@ vi.mock("@/integrations/supabase/client", () => ({
     from: (table: string) => table === "reports" ? {
       select() { return this; },
       order() { return this; },
-      then(resolve: (value: unknown) => void) { resolve({ data: state.reports }); },
+      then(resolve: (value: unknown) => void) {
+        if (state.resolveReports) {
+          state.resolveReports = () => resolve({ data: state.reports, error: state.reportsError });
+        } else resolve({ data: state.reports, error: state.reportsError });
+      },
       async insert(values: { title: string; description: string | null }) {
         state.reports.unshift({ id: "new-report", ...values, created_at: "2026-10-23T10:00:00Z" });
         return { error: null };
@@ -39,6 +45,8 @@ describe("Reports", () => {
     state.reports = [{ id: "report-1", title: "Feeding notes", description: "Add more food", created_at: "2026-10-21T10:00:00Z" }];
     state.readings = [];
     state.readingsError = null;
+    state.reportsError = null;
+    state.resolveReports = null;
     vi.mocked(downloadGrowthRecordsCsv).mockResolvedValue(2);
     Object.defineProperty(URL, "createObjectURL", { configurable: true, value: vi.fn(() => "blob:test") });
     Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: vi.fn() });
@@ -60,6 +68,29 @@ describe("Reports", () => {
     vi.mocked(downloadGrowthRecordsCsv).mockRejectedValueOnce(new Error("Connection failed"));
     fireEvent.click(screen.getByRole("button", { name: "Export growth CSV" }));
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Could not export growth records: Connection failed"));
+  });
+
+  it("waits for the first request before showing the empty state", async () => {
+    state.reports = [];
+    const pending = () => {};
+    state.resolveReports = pending;
+    render(<Reports />);
+    expect(screen.getByRole("status", { name: "Loading reports" })).toBeVisible();
+    expect(screen.queryByText("No reports yet.")).toBeNull();
+    await waitFor(() => expect(state.resolveReports).not.toBe(pending));
+    state.resolveReports();
+    expect(await screen.findByText("No reports yet.")).toBeVisible();
+  });
+
+  it("shows a retryable error instead of a false empty state", async () => {
+    state.reports = [];
+    state.reportsError = new Error("Connection failed");
+    render(<Reports />);
+    expect(await screen.findByRole("alert")).toHaveTextContent("Could not load reports: Connection failed");
+    expect(screen.queryByText("No reports yet.")).toBeNull();
+    state.reportsError = null;
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(await screen.findByText("No reports yet.")).toBeVisible();
   });
 
   it("downloads readings and reports empty or failed exports", async () => {

@@ -63,7 +63,10 @@ describe("Growth Monitoring", () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => model }));
 
     render(<Growth />);
-    await waitFor(() => expect(screen.getByText(/Estimate for/)).toBeInTheDocument());
+    const estimateLabel = await screen.findByText(/Estimate for/);
+    expect(screen.getByRole("heading", { name: "7-day growth estimate" })).toBeVisible();
+    expect(estimateLabel.compareDocumentPosition(screen.getAllByText("Last actual value")[0]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByText(/Reference range:/)).toBeVisible();
     expect(screen.getByText(/Add a starting or sampled average length/)).toBeVisible();
     expect(screen.getByText("Research estimate")).toBeVisible();
   });

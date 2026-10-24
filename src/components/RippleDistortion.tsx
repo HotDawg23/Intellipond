@@ -30,6 +30,22 @@ type RippleDistortionProps = {
   style?: CSSProperties;
 };
 
+type NumericUniform = { value: number };
+type ColorUniform = { value: number[] };
+type RippleUniforms = {
+  wave: { uRings: NumericUniform };
+  composite: {
+    uStrength: NumericUniform;
+    uSwirl: NumericUniform;
+    uDispersion: NumericUniform;
+    uGlint: NumericUniform;
+    uTintAmount: NumericUniform;
+    uGrayscale: NumericUniform;
+    uHighlight: ColorUniform;
+    uTint: ColorUniform;
+  };
+};
+
 const waveVertex = `
 precision highp float;
 attribute vec2 position;
@@ -164,7 +180,7 @@ const RippleDistortion = ({
 }: RippleDistortionProps) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const configRef = useRef({ brushSize, spread, fade, spacing, clickStrength, trigger, enabled });
-  const uniformsRef = useRef<any>(null);
+  const uniformsRef = useRef<RippleUniforms | null>(null);
 
   configRef.current = { brushSize, spread, fade, spacing, clickStrength, trigger, enabled };
 

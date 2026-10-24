@@ -1,4 +1,4 @@
-import { Link, NavLink, useNavigate } from "react-router-dom";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -6,6 +6,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { LayoutDashboard, Fish, Bell, Settings, Database, Users, FileText, LogOut, Waves, Sliders, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
 import BrandMark from "@/components/BrandMark";
+import { ThemeControl } from "@/components/ThemeControl";
 
 const userNav = [
   { to: "/dashboard", label: "Overview", icon: LayoutDashboard },
@@ -25,7 +26,7 @@ const adminNav = [
 ];
 
 const SidebarContent = ({
-  admin, items, user, role, onNavigate, onSignOut,
+  admin, items, user, role, onNavigate, onSignOut, showThemeControl = true,
 }: {
   admin: boolean;
   items: typeof userNav;
@@ -33,6 +34,7 @@ const SidebarContent = ({
   role: string | null;
   onNavigate: (to: string) => void;
   onSignOut: () => void;
+  showThemeControl?: boolean;
 }) => (
   <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
     <Link to="/" className="px-6 py-6 flex items-center gap-2 border-b border-sidebar-border" onClick={() => onNavigate("/")}>
@@ -65,6 +67,7 @@ const SidebarContent = ({
           <LayoutDashboard className="h-4 w-4 mr-2" /> Operator View
         </Button>
       )}
+      {showThemeControl && <ThemeControl className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" />}
       <div className="px-2 py-1.5 text-xs text-sidebar-foreground/60 truncate">{user?.email}</div>
       <Button variant="ghost" className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent" onClick={onSignOut}>
         <LogOut className="h-4 w-4 mr-2" /> Sign out
@@ -75,6 +78,7 @@ const SidebarContent = ({
 
 export const AppShell = ({ children, admin = false }: { children: React.ReactNode; admin?: boolean }) => {
   const { signOut, user, role } = useAuth();
+  const { pathname } = useLocation();
   const nav = useNavigate();
   const [open, setOpen] = useState(false);
   const items = admin ? adminNav : userNav;
@@ -104,7 +108,7 @@ export const AppShell = ({ children, admin = false }: { children: React.ReactNod
                 </Button>
               </SheetTrigger>
               <SheetContent side="left" className="p-0 w-72 bg-sidebar border-0">
-                <SidebarContent admin={admin} items={items} user={user} role={role} onNavigate={handleNavigate} onSignOut={handleSignOut} />
+                <SidebarContent admin={admin} items={items} user={user} role={role} onNavigate={handleNavigate} onSignOut={handleSignOut} showThemeControl={false} />
               </SheetContent>
             </Sheet>
             <Link to="/" className="flex items-center gap-2">
@@ -112,9 +116,12 @@ export const AppShell = ({ children, admin = false }: { children: React.ReactNod
               <span className="font-semibold">IntelliPond</span>
             </Link>
           </div>
-          <Button size="icon" variant="ghost" onClick={handleSignOut} aria-label="Sign out"><LogOut className="h-4 w-4" /></Button>
+          <div className="flex items-center gap-1">
+            <ThemeControl iconOnly className="text-foreground" />
+            <Button size="icon" variant="ghost" onClick={handleSignOut} aria-label="Sign out"><LogOut className="h-4 w-4" /></Button>
+          </div>
         </div>
-        <div className="mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">{children}</div>
+        <div key={pathname} className="console-page-enter mx-auto max-w-7xl p-4 sm:p-6 lg:p-8">{children}</div>
       </main>
     </div>
   );

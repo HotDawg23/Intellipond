@@ -3,6 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      (() => {
+        try {
+          const savedTheme = localStorage.getItem("intellipond-theme");
+          const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+          const isDark = savedTheme === "dark" || (savedTheme !== "light" && prefersDark);
+          document.documentElement.classList.toggle("dark", isDark);
+          document.documentElement.style.colorScheme = isDark ? "dark" : "light";
+        } catch {
+          // ThemeProvider applies the system preference if browser storage is unavailable.
+        }
+      })();
+    </script>
     <link rel="icon" type="image/svg+xml" href="/intellipond-mark.svg" />
     <meta name="theme-color" content="#0B3C64" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />

@@ -6,6 +6,7 @@ import { Slider } from "@/components/ui/slider";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import SpotlightCard from "@/components/SpotlightCard";
 import BrandMark from "@/components/BrandMark";
+import { ThemeControl } from "@/components/ThemeControl";
 import { Waves, ArrowRight, Settings2, LoaderCircle } from "lucide-react";
 import heroImg from "@/assets/hero-water.jpg";
 import waterQualityImg from "@/assets/feature-water-quality.png";
@@ -91,19 +92,20 @@ const Index = () => {
             <BrandMark className="h-9 w-9 rounded-xl" />
             <span className="font-semibold tracking-tight">IntelliPond</span>
           </div>
-          <nav className="col-span-2 row-start-2 hidden w-full items-center justify-between gap-3 text-xs text-white/80 sm:justify-center sm:gap-8 sm:text-sm md:col-auto md:row-auto md:flex md:w-auto">
+          <nav className="col-span-2 row-start-2 hidden w-full items-center justify-between gap-3 text-xs text-white/90 sm:justify-center sm:gap-8 sm:text-sm md:col-auto md:row-auto md:flex md:w-auto">
             <a href="#features" onClick={(event) => scrollToSection(event, "features")} className="hover:text-white">Features</a>
             <a href="#how" onClick={(event) => scrollToSection(event, "how")} className="hover:text-white">How it works</a>
             <a href="#research" onClick={(event) => scrollToSection(event, "research")} className="hover:text-white">Research</a>
           </nav>
           <div className="col-start-2 row-start-1 md:col-auto md:row-auto flex items-center gap-2">
+            <ThemeControl iconOnly className="border border-white/50 bg-white/10 text-white hover:bg-white/20 hover:text-white" />
             {!user && (
               <Button asChild variant="outline" size="sm" className="whitespace-nowrap border-white/50 bg-white/10 px-2 text-xs text-white hover:bg-white/20 hover:text-white sm:px-3 sm:text-sm">
                 <Link to="/auth?tab=signup"><span className="sm:hidden">Sign up</span><span className="hidden sm:inline">Create an account</span></Link>
               </Button>
             )}
             <Link to={user ? "/dashboard" : "/auth"} onClick={handleGetStarted}>
-              <Button variant="secondary" size="sm" disabled={isStartingSignIn} aria-busy={isStartingSignIn} className="bg-white text-primary hover:bg-white/90">
+              <Button variant="secondary" size="sm" disabled={isStartingSignIn} aria-busy={isStartingSignIn} className="bg-white text-primary hover:bg-white/90 dark:text-slate-900">
                 {isStartingSignIn ? <><LoaderCircle aria-hidden="true" className="mr-2 h-4 w-4 animate-spin" />Loading</> : user ? "Open console" : "Sign in"}
               </Button>
             </Link>
@@ -113,10 +115,10 @@ const Index = () => {
 
       {/* Hero */}
       <section className="relative min-h-[92vh] overflow-hidden flex items-center">
-        <img src={heroImg} alt="" className="absolute inset-0 h-full w-full object-cover" />
-        <div className="absolute inset-0 gradient-deep opacity-85" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_30%,hsl(188_85%_55%/0.4),transparent_60%)]" />
-        <div aria-hidden="true" className="absolute inset-0 overflow-hidden opacity-[0.58] mix-blend-screen pointer-events-none">
+        <img src={heroImg} alt="" className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.55] dark:saturate-75" />
+        <div className="absolute inset-0 gradient-deep opacity-85 dark:opacity-95" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_30%,hsl(188_85%_55%/0.4),transparent_60%)] dark:opacity-25" />
+        <div aria-hidden="true" className="absolute inset-0 overflow-hidden opacity-[0.58] mix-blend-screen pointer-events-none dark:opacity-20">
           <Suspense fallback={null}>
             <RippleDistortion
               src={heroImg}
@@ -136,21 +138,21 @@ const Index = () => {
             />
           </Suspense>
         </div>
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-b from-transparent to-background opacity-0 dark:opacity-100" />
         <div className="relative mx-auto grid w-full max-w-7xl grid-cols-1 items-center gap-8 px-4 pt-36 pb-20 sm:px-6 sm:pb-24 md:gap-10 md:py-32 lg:grid-cols-12">
           <FadeContent className="lg:col-span-7 text-white" blur duration={900}>
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur border border-white/20 text-xs uppercase tracking-widest text-white/80 mb-6">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 backdrop-blur border border-white/20 text-xs uppercase tracking-widest text-white/90 mb-6">
               <span className="ripple-dot bg-accent" /> Live aquaculture intelligence
             </div>
             <h1 className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-semibold leading-[1.05] tracking-tight">
-              <span className="text-gradient">Intellipond</span>: Smart Fishpond Monitoring System<br className="hidden lg:block" />
-              <span className="text-gradient"></span>
+              <span className="bg-gradient-to-r from-white to-cyan-100 bg-clip-text text-transparent">Intellipond</span>: Smart Fishpond Monitoring System<br className="hidden lg:block" />
             </h1>
-            <p className="mt-5 sm:mt-6 text-base sm:text-lg text-white/75 max-w-xl">
+            <p className="mt-5 sm:mt-6 text-base sm:text-lg text-white/90 max-w-xl">
               Monitor water quality, fish growth, and pond conditions in real time with live IoT sensor data.
             </p>
             <div className="mt-8 sm:mt-10 flex flex-col sm:flex-row flex-wrap gap-3">
               <Link to={user ? "/dashboard" : "/auth"} onClick={handleGetStarted} className="w-full sm:w-auto">
-                <Button size="lg" disabled={isStartingSignIn} aria-busy={isStartingSignIn} className="w-full sm:w-auto bg-white text-primary hover:bg-white/90 h-12 px-6 hover-scale">
+                <Button size="lg" disabled={isStartingSignIn} aria-busy={isStartingSignIn} className="w-full sm:w-auto bg-white text-primary hover:bg-white/90 dark:text-slate-900 h-12 px-6 hover-scale">
                   {isStartingSignIn ? "Preparing sign in" : user ? "Go to dashboard" : "Get started"}
                   {isStartingSignIn ? <LoaderCircle aria-hidden="true" className="ml-2 h-4 w-4 animate-spin" /> : <ArrowRight className="ml-2 h-4 w-4" />}
                 </Button>
@@ -160,19 +162,20 @@ const Index = () => {
           </FadeContent>
           <div className="lg:col-span-5 w-full">
             <div className="relative w-full mx-auto max-w-[520px] aspect-square sm:aspect-[4/3] lg:aspect-square h-[280px] sm:h-[360px] md:h-[420px] lg:h-[480px]">
-              <div className="absolute -inset-4 gradient-aqua opacity-30 blur-3xl rounded-full pointer-events-none" />
+              <div className="absolute -inset-4 gradient-aqua opacity-30 blur-3xl rounded-full pointer-events-none dark:opacity-15" />
               <div className="relative h-full w-full rounded-3xl overflow-hidden border border-white/15 bg-white/5 backdrop-blur-sm">
                 {loadPond ? (
-                  <Suspense fallback={<div className="h-full w-full grid place-items-center text-white/40 text-xs">Loading scene…</div>}>
+                  <Suspense fallback={<div className="h-full w-full grid place-items-center text-white/90 text-xs">Loading scene…</div>}>
                     <PondScene />
                   </Suspense>
                 ) : (
-                  <div className="h-full w-full grid place-items-center text-white/40 text-xs" role="status">
+                  <div className="h-full w-full grid place-items-center text-white/90 text-xs" role="status">
                     Loading scene…
                   </div>
                 )}
-                <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-white/70 text-[10px] sm:text-xs font-mono pointer-events-none">
-                  <span className="flex items-center gap-2"><span className="ripple-dot bg-accent" />IntelliPond 3D</span>
+                <div className="pointer-events-none absolute inset-0 dark:bg-slate-950/20" />
+                <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-white/90 text-[10px] sm:text-xs font-mono pointer-events-none">
+                  <span className="flex items-center gap-2 rounded-full bg-slate-950/55 px-2.5 py-1"><span className="ripple-dot bg-accent" />IntelliPond 3D</span>
                 </div>
               </div>
             </div>
@@ -277,7 +280,7 @@ const Index = () => {
               <div className="flex items-center justify-between">
                 <Waves className="h-8 w-8 drop-shadow" />
                 <FadeContent className="flex items-center gap-3" blur duration={850}>
-                  <span className="text-[10px] uppercase tracking-widest text-white/70 font-mono flex items-center gap-2 pointer-events-none">
+                  <span className="text-[10px] uppercase tracking-widest text-white/90 font-mono flex items-center gap-2 pointer-events-none">
                     <span className="ripple-dot bg-accent" /> Bangus aquarium
                   </span>
                   <Popover>
@@ -312,7 +315,7 @@ const Index = () => {
               </div>
               <FadeContent className="pointer-events-none" blur duration={900}>
                 <div className="text-4xl sm:text-5xl font-semibold tracking-tight drop-shadow-lg">Calm.<br />Clear.<br />Continuous.</div>
-                <div className="mt-6 text-white/80 text-sm max-w-xs">An academic-grade platform designed for real fishpond operations.</div>
+                <div className="mt-6 text-white/90 text-sm max-w-xs">An academic-grade platform designed for real fishpond operations.</div>
               </FadeContent>
             </div>
           </div>

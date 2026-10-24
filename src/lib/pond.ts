@@ -19,7 +19,8 @@ export const DEFAULT_SETTINGS: Settings = {
 };
 
 export async function getSettings(): Promise<Settings> {
-  const { data } = await supabase.from("admin_settings").select("*").limit(1).maybeSingle();
+  const { data, error } = await supabase.from("admin_settings").select("*").limit(1).maybeSingle();
+  if (error) throw error;
   return data ?? DEFAULT_SETTINGS;
 }
 

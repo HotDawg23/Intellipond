@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
-import { PageHeader, EmptyState } from "@/components/Common";
+import { PageHeader, EmptyState, LoadingState, LoadError } from "@/components/Common";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,15 +20,25 @@ type PondOption = Pick<Tables<"pond_profiles">, "id" | "name">;
 const Sensors = () => {
   const [readings, setReadings] = useState<ReadingWithPond[]>([]);
   const [ponds, setPonds] = useState<PondOption[]>([]);
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const [loadError, setLoadError] = useState("");
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ pond_id: "", do_mg_l: "", ph: "", temperature_c: "", turbidity_ntu: "" });
 
   const load = async () => {
-    const [r, p] = await Promise.all([
-      supabase.from("sensor_readings").select("*, pond_profiles(name)").order("recorded_at", { ascending: false }).limit(100),
-      supabase.from("pond_profiles").select("id, name"),
-    ]);
-    setReadings(r.data ?? []); setPonds(p.data ?? []);
+    setLoadError("");
+    try {
+      const [r, p] = await Promise.all([
+        supabase.from("sensor_readings").select("*, pond_profiles(name)").order("recorded_at", { ascending: false }).limit(100),
+        supabase.from("pond_profiles").select("id, name"),
+      ]);
+      if (r.error) throw r.error;
+      if (p.error) throw p.error;
+      setReadings(r.data ?? []); setPonds(p.data ?? []);
+      setHasLoaded(true);
+    } catch (error) {
+      setLoadError(`Could not load sensor readings: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
   };
   useEffect(() => {
     void load();
@@ -52,7 +62,7 @@ const Sensors = () => {
       turbidity_ntu: form.turbidity_ntu ? +form.turbidity_ntu : null,
     });
     if (error) return toast.error(error.message);
-    toast.success("Reading recorded"); setOpen(false); setForm({ pond_id: "", do_mg_l: "", ph: "", temperature_c: "", turbidity_ntu: "" }); load();
+    toast.success("Reading recorded"); setOpen(false); setForm({ pond_id: "", do_mg_l: "", ph: "", temperature_c: "", turbidity_ntu: "" }); void load();
   };
 
   return (
@@ -96,10 +106,13 @@ const Sensors = () => {
             </div>
           </div>
           <Badge variant="outline" className="w-fit border-border bg-background/80 text-muted-foreground">
-            {readings.length === 100 ? "Latest 100" : `${readings.length} ${readings.length === 1 ? "reading" : "readings"}`}
+            {!hasLoaded ? "—" : readings.length === 100 ? "Latest 100" : `${readings.length} ${readings.length === 1 ? "reading" : "readings"}`}
           </Badge>
         </div>
-        {readings.length === 0 ? (
+        {loadError && <div className="p-4 sm:p-5"><LoadError message={loadError} onRetry={() => void load()} /></div>}
+        {!hasLoaded ? (
+          loadError ? null : <LoadingState label="Loading sensor readings" />
+        ) : readings.length === 0 ? (
           <div className="p-4 sm:p-6">
             <EmptyState icon={Database} title="No sensor readings available yet." description="Record a reading to start building your water quality history." />
           </div>
@@ -136,29 +149,37 @@ const Sensors = () => {
               ))}
             </div>
             <div className="hidden overflow-x-auto md:block">
-              <table className="w-full min-w-[44rem] text-sm">
+              <table className="w-full min-w-[64rem] table-fixed text-sm">
                 <caption className="sr-only">Recent water quality measurements by pond and time.</caption>
+                <colgroup>
+                  <col className="w-[22%]" />
+                  <col className="w-[13%]" />
+                  <col className="w-[16.25%]" />
+                  <col className="w-[16.25%]" />
+                  <col className="w-[16.25%]" />
+                  <col className="w-[16.25%]" />
+                </colgroup>
                 <thead>
                   <tr className="border-b border-border bg-muted/30 text-left text-xs uppercase tracking-wider text-muted-foreground">
-                    <th scope="col" className="px-5 py-3">Time</th>
+                    <th scope="col" className="px-4 py-3">Time</th>
                     <th scope="col" className="px-4 py-3">Pond</th>
-                    <th scope="col" className="px-4 py-3 font-mono">DO (mg/L)</th>
-                    <th scope="col" className="px-4 py-3 font-mono">pH</th>
-                    <th scope="col" className="px-4 py-3 font-mono">Temperature (°C)</th>
-                    <th scope="col" className="px-4 py-3 font-mono">Turbidity (NTU)</th>
+                    <th scope="col" className="px-4 py-3 text-right font-mono">DO (mg/L)</th>
+                    <th scope="col" className="px-4 py-3 text-right font-mono">pH</th>
+                    <th scope="col" className="px-4 py-3 text-right font-mono">Temperature (°C)</th>
+                    <th scope="col" className="px-4 py-3 text-right font-mono">Turbidity (NTU)</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/70">
                   {readings.map(reading => (
                     <tr key={reading.id} className="transition-colors hover:bg-muted/30">
-                      <td className="whitespace-nowrap px-5 py-3 font-mono text-xs text-muted-foreground">
+                      <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-muted-foreground">
                         <time dateTime={reading.recorded_at}>{format(new Date(reading.recorded_at), "MMM d, yyyy · HH:mm")}</time>
                       </td>
                       <td className="px-4 py-3 font-medium">{reading.pond_profiles?.name ?? "Pond unavailable"}</td>
-                      <td className="px-4 py-3 font-mono tabular-nums">{reading.do_mg_l?.toFixed(2) ?? "—"}</td>
-                      <td className="px-4 py-3 font-mono tabular-nums">{reading.ph?.toFixed(2) ?? "—"}</td>
-                      <td className="px-4 py-3 font-mono tabular-nums">{reading.temperature_c == null ? "—" : `${reading.temperature_c.toFixed(2)} °C`}</td>
-                      <td className="px-4 py-3 font-mono tabular-nums">{reading.turbidity_ntu == null ? "—" : `${reading.turbidity_ntu.toFixed(2)} NTU`}</td>
+                      <td className="px-4 py-3 text-right font-mono tabular-nums">{reading.do_mg_l?.toFixed(2) ?? "—"}</td>
+                      <td className="px-4 py-3 text-right font-mono tabular-nums">{reading.ph?.toFixed(2) ?? "—"}</td>
+                      <td className="px-4 py-3 text-right font-mono tabular-nums">{reading.temperature_c == null ? "—" : `${reading.temperature_c.toFixed(2)} °C`}</td>
+                      <td className="px-4 py-3 text-right font-mono tabular-nums">{reading.turbidity_ntu == null ? "—" : `${reading.turbidity_ntu.toFixed(2)} NTU`}</td>
                     </tr>
                   ))}
                 </tbody>

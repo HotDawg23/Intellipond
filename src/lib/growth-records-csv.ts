@@ -27,11 +27,20 @@ const CSV_COLUMNS: Array<[string, keyof GrowthWaterAveragesRecord]> = [
   ["recorded_at_utc", "recorded_at"],
 ];
 
+function startsWithSpreadsheetFormula(value: string): boolean {
+  for (const character of value) {
+    if (character.trim() === "" || character.charCodeAt(0) === 0) continue;
+    return character === "=" || character === "+" || character === "-" || character === "@";
+  }
+
+  return false;
+}
+
 function csvCell(value: unknown): string {
   let text = value == null ? "" : String(value);
 
   // Prevent spreadsheet applications from interpreting user-entered text as a formula.
-  if (typeof value === "string" && /^[\s\u0000]*[=+\-@]/.test(text)) {
+  if (typeof value === "string" && startsWithSpreadsheetFormula(text)) {
     text = `'${text}`;
   }
 

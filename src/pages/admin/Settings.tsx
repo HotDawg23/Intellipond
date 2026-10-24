@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
-import { PageHeader } from "@/components/Common";
+import { PageHeader, LoadingState, LoadError } from "@/components/Common";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,13 +29,21 @@ type ThresholdSettings = {
 const Settings = () => {
   const [s, setS] = useState<ThresholdSettings>({ do_min: 4, do_max: 9, ph_min: 6.5, ph_max: 8.5, temp_min: 26, temp_max: 32, turbidity_max: 80, alerts_enabled: true, critical_do_high: null, critical_ph_low: null, critical_ph_high: null, critical_temp_low: null, critical_turbidity_high: null });
   const [settingsId, setSettingsId] = useState<string | null>(null);
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const [loadError, setLoadError] = useState("");
 
-  useEffect(() => {
-    (async () => {
-      const { data: row } = await supabase.from("admin_settings").select("*").limit(1).maybeSingle();
+  const load = async () => {
+    setLoadError("");
+    try {
+      const { data: row, error } = await supabase.from("admin_settings").select("*").limit(1).maybeSingle();
+      if (error) throw error;
       if (row) { setS(row); setSettingsId(row.id); }
-    })();
-  }, []);
+      setHasLoaded(true);
+    } catch (error) {
+      setLoadError(`Could not load settings: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  };
+  useEffect(() => { void load(); }, []);
 
   const saveThresholds = async () => {
     const optionalNumber = (value: number | string | null) => value === "" || value == null ? null : Number(value);
@@ -67,7 +75,10 @@ const Settings = () => {
     <AppShell admin>
       <div className="mx-auto w-full max-w-4xl">
         <PageHeader title="System Configuration" subtitle="Water-quality thresholds and alerting." />
-        <Card className="p-6 sm:p-8">
+        {loadError && <div className="mb-5"><LoadError message={loadError} onRetry={() => void load()} /></div>}
+        {!hasLoaded ? (
+          loadError ? null : <Card><LoadingState label="Loading settings" /></Card>
+        ) : <Card className="p-6 sm:p-8">
           <div className="flex items-center gap-2 mb-1"><Sliders className="h-5 w-5 text-accent" /><h3 className="font-semibold">Threshold Configuration</h3></div>
           <p className="text-sm text-muted-foreground mb-5">Control when alerts trigger.</p>
           <div className="space-y-4">
@@ -97,7 +108,7 @@ const Settings = () => {
             </div>
             <Button className="w-full gradient-aqua text-white border-0" onClick={saveThresholds}>Save thresholds</Button>
           </div>
-        </Card>
+        </Card>}
       </div>
     </AppShell>
   );

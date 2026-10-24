@@ -42,6 +42,7 @@ export function useAlertHistory(withPond: boolean) {
     if (status === "acknowledged") query = query.eq("status", "active").eq("acknowledged", true);
     if (status === "resolved") query = query.eq("status", "resolved");
     if (status === "legacy") query = query.eq("status", "legacy_archived");
+    else if (ageView === "recent" && status === "all") query = query.neq("status", "legacy_archived");
 
     const { data, count, error } = await query.order("created_at", { ascending: false })
       .order("id", { ascending: false })

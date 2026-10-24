@@ -2,8 +2,40 @@
 @tailwind components;
 @tailwind utilities;
 
+@keyframes batch-details-open {
+  from { height: 0; opacity: 0; }
+  to { height: var(--radix-collapsible-content-height); opacity: 1; }
+}
+
+@keyframes batch-details-close {
+  from { height: var(--radix-collapsible-content-height); opacity: 1; }
+  to { height: 0; opacity: 0; }
+}
+
+@keyframes activity-bar-grow {
+  from { transform: scaleY(0); opacity: 0.4; }
+  to { transform: scaleY(1); opacity: 1; }
+}
+
+@keyframes metric-number-enter {
+  from { transform: translateY(6px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes console-page-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .console-page-enter {
+    animation: console-page-enter 250ms ease-out backwards;
+  }
+}
+
 @layer base {
   :root {
+    color-scheme: light;
     /* IntelliPond palette - deep aquaculture */
     --background: 200 30% 98%;
     --foreground: 215 45% 12%;
@@ -24,16 +56,17 @@
     --muted: 200 25% 94%;
     --muted-foreground: 210 18% 42%;
 
-    --accent: 188 85% 45%;           /* aqua */
+    --accent: 188 85% 26%;           /* aqua with readable text contrast */
     --accent-foreground: 0 0% 100%;
 
-    --success: 152 60% 42%;          /* soft green */
+    --success: 152 62% 31%;          /* soft green with readable text contrast */
     --success-foreground: 0 0% 100%;
 
-    --warning: 35 92% 52%;
+    --warning: 35 85% 35%;
     --warning-foreground: 0 0% 100%;
 
-    --destructive: 0 75% 52%;
+    --destructive: 0 75% 42%;
+    --destructive-text: 0 75% 42%;
     --destructive-foreground: 0 0% 100%;
 
     --border: 205 30% 88%;
@@ -42,8 +75,8 @@
 
     --radius: 0.7rem;
 
-    --gradient-deep: linear-gradient(135deg, hsl(210 85% 18%), hsl(200 70% 32%) 60%, hsl(188 75% 45%));
-    --gradient-aqua: linear-gradient(120deg, hsl(195 90% 55%), hsl(188 85% 45%));
+    --gradient-deep: linear-gradient(135deg, hsl(210 85% 18%), hsl(200 70% 26%) 60%, hsl(188 75% 30%));
+    --gradient-aqua: linear-gradient(120deg, hsl(195 86% 30%), hsl(188 78% 27%));
     --gradient-surface: linear-gradient(180deg, hsl(200 30% 99%), hsl(195 40% 95%));
     --shadow-elevated: 0 20px 60px -25px hsl(210 85% 22% / 0.35);
     --shadow-soft: 0 4px 24px -8px hsl(210 50% 30% / 0.15);
@@ -60,6 +93,7 @@
   }
 
   .dark {
+    color-scheme: dark;
     --background: 215 50% 7%;
     --foreground: 195 40% 95%;
     --card: 215 45% 10%;
@@ -72,13 +106,23 @@
     --secondary-foreground: 195 40% 95%;
     --muted: 215 30% 14%;
     --muted-foreground: 200 20% 65%;
-    --accent: 188 85% 45%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 70% 50%;
+    --accent: 188 75% 52%;
+    --accent-foreground: 215 50% 8%;
+    --success: 152 55% 64%;
+    --success-foreground: 215 50% 8%;
+    --warning: 40 88% 64%;
+    --warning-foreground: 215 50% 8%;
+    --destructive: 0 70% 46%;
+    --destructive-text: 0 90% 76%;
     --destructive-foreground: 0 0% 100%;
     --border: 215 30% 18%;
     --input: 215 30% 18%;
     --ring: 188 85% 50%;
+    --gradient-deep: linear-gradient(135deg, hsl(215 60% 9%), hsl(207 55% 13%) 55%, hsl(190 50% 17%));
+    --gradient-aqua: linear-gradient(120deg, hsl(195 86% 30%), hsl(188 78% 27%));
+    --gradient-surface: linear-gradient(180deg, hsl(215 48% 9%), hsl(215 42% 12%));
+    --shadow-elevated: 0 20px 60px -25px hsl(215 60% 2% / 0.7);
+    --shadow-soft: 0 4px 24px -8px hsl(215 60% 2% / 0.45);
   }
 }
 

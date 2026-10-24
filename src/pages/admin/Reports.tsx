@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
-import { PageHeader, EmptyState } from "@/components/Common";
+import { PageHeader, EmptyState, LoadingState, LoadError } from "@/components/Common";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { Card } from "@/components/ui/card";
@@ -20,20 +20,32 @@ const readingColumns = ["recorded_at", "pond_id", "do_mg_l", "ph", "temperature_
 
 const Reports = () => {
   const [reports, setReports] = useState<Report[]>([]);
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const [loadError, setLoadError] = useState("");
   const [open, setOpen] = useState(false);
   const [exportingReadings, setExportingReadings] = useState(false);
   const [exportingGrowth, setExportingGrowth] = useState(false);
   const [form, setForm] = useState({ title: "", description: "" });
 
-  const load = () => supabase.from("reports").select("*").order("created_at", { ascending: false }).then(({ data }) => setReports(data ?? []));
-  useEffect(() => { load(); }, []);
+  const load = async () => {
+    setLoadError("");
+    try {
+      const { data, error } = await supabase.from("reports").select("*").order("created_at", { ascending: false });
+      if (error) throw error;
+      setReports(data ?? []);
+      setHasLoaded(true);
+    } catch (error) {
+      setLoadError(`Could not load reports: ${error instanceof Error ? error.message : "Unknown error"}`);
+    }
+  };
+  useEffect(() => { void load(); }, []);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const { data: { user } } = await supabase.auth.getUser();
     const { error } = await supabase.from("reports").insert({ title: form.title, description: form.description || null, generated_by: user?.id });
     if (error) return toast.error(error.message);
-    toast.success("Report saved"); setOpen(false); setForm({ title: "", description: "" }); load();
+    toast.success("Report saved"); setOpen(false); setForm({ title: "", description: "" }); void load();
   };
 
   const exportCSV = async () => {
@@ -118,9 +130,12 @@ const Reports = () => {
       <section aria-labelledby="saved-reports-title">
         <div className="mb-3 flex items-center justify-between gap-3">
           <h2 id="saved-reports-title" className="text-base font-semibold">Saved reports</h2>
-          <span className="rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground">{reports.length} {reports.length === 1 ? "entry" : "entries"}</span>
+          <span className="rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground">{hasLoaded ? `${reports.length} ${reports.length === 1 ? "entry" : "entries"}` : "—"}</span>
         </div>
-      {reports.length === 0 ? (
+      {loadError && <div className="mb-3"><LoadError message={loadError} onRetry={() => void load()} /></div>}
+      {!hasLoaded ? (
+        loadError ? null : <Card><LoadingState label="Loading reports" /></Card>
+      ) : reports.length === 0 ? (
         <Card className="p-6"><EmptyState icon={FileText} title="No reports yet." /></Card>
       ) : (
         <Card className="divide-y divide-border overflow-hidden border-border/70 shadow-sm">

@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import tailwindcssAnimate from "tailwindcss-animate";
 
 export default {
   darkMode: ["class"],
@@ -36,6 +37,7 @@ export default {
         },
         destructive: {
           DEFAULT: "hsl(var(--destructive))",
+          text: "hsl(var(--destructive-text))",
           foreground: "hsl(var(--destructive-foreground))",
         },
         muted: {
@@ -106,5 +108,5 @@ export default {
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [tailwindcssAnimate],
 } satisfies Config;
