@@ -80,7 +80,7 @@ export const PondScene = () => {
         frameloop={isVisible ? "always" : "never"}
         resize={{ scroll: false }}
         style={{ width: "100%", height: "100%", display: "block" }}
-        className="!touch-none"
+        className="touch-pan-y"
       >
         <Suspense fallback={null}>
           <ambientLight intensity={0.4} />

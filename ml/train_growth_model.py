@@ -277,17 +277,22 @@ def train(rows: list[dict[str, Any]]) -> dict[str, Any]:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--bfar-csv", type=Path, help="Optional private BFAR CSV in the documented column format")
-    parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
+    parser.add_argument("--output", type=Path, help="Path for the generated model artifact")
     args = parser.parse_args()
+
+    if args.bfar_csv and args.output is None:
+        parser.error("--output is required when --bfar-csv is supplied; save BFAR candidates outside public/")
+
+    output = args.output or DEFAULT_OUTPUT
 
     rows = load_csv(PUBLIC_DATA, "WorldFish 2016-07")
     if args.bfar_csv:
         rows.extend(load_csv(args.bfar_csv, "BFAR supplied records"))
     model = train(rows)
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(model, indent=2) + "\n", encoding="utf-8")
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(model, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({
-        "output": str(args.output),
+        "output": str(output),
         "model_version": model["model_version"],
         "measurement_count": model["training_data"]["measurement_count"],
         "cohort_count": model["training_data"]["cohort_count"],

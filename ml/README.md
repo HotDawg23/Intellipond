@@ -54,10 +54,13 @@ growth-rate spread is not a confidence interval or confidence percentage.
 
 ```sh
 python ml/train_growth_model.py
-python ml/train_growth_model.py --bfar-csv /path/to/bfar_growth.csv
+python ml/train_growth_model.py --bfar-csv /path/to/bfar_growth.csv --output /path/to/private/bfar_growth_model_candidate.json
 ```
 
-The generated artifact is `public/growth-model.json`.
+The WorldFish-only command writes `public/growth-model.json`. When `--bfar-csv`
+is supplied, `--output` is required so candidate data cannot overwrite the
+published model by default. Store private BFAR data and generated candidates
+outside the repository unless sharing has been authorized.
 
 ## Private BFAR candidate comparison
 

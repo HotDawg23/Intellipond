@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { ArrowLeft, LoaderCircle } from "lucide-react";
 import authBackgroundImg from "@/assets/auth-dashboard-bg.png";
 import BrandMark from "@/components/BrandMark";
-import { PublicThemeControl } from "@/components/ThemeControl";
+import { ThemeControl } from "@/components/ThemeControl";
 
 const Auth = () => {
   const nav = useNavigate();
@@ -49,8 +49,6 @@ const Auth = () => {
   };
 
   return (
-    <>
-    <PublicThemeControl />
     <div className="auth-page grid min-h-screen w-full min-w-0 grid-cols-1 lg:grid-cols-2">
       <div className="relative hidden lg:block overflow-hidden gradient-deep">
         <img src={authBackgroundImg} alt="" className="absolute inset-0 h-full w-full object-cover opacity-10" />
@@ -69,14 +67,30 @@ const Auth = () => {
           <div className="text-xs text-white/90">CAPSTONE PROJECT S.Y. 2026-2027 | DELTAFORCE</div>
         </div>
       </div>
-      <div className="flex w-full min-w-0 items-center justify-center bg-background p-4 sm:p-6 lg:p-12">
+      <div className="relative flex w-full min-w-0 items-center justify-center bg-background p-4 sm:p-6 lg:p-12">
+        <Link
+          to="/"
+          className="absolute z-10 flex items-center gap-1.5 rounded-sm text-sm text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 lg:hidden"
+          style={{
+            top: "calc(env(safe-area-inset-top, 0px) + 1rem)",
+            left: "calc(env(safe-area-inset-left, 0px) + 1rem)",
+          }}
+        >
+          <ArrowLeft aria-hidden="true" className="h-4 w-4" />
+          Back to home
+        </Link>
         <Card className="w-full min-w-0 max-w-[calc(100vw_-_2rem)] border-border/60 p-6 shadow-soft sm:max-w-md sm:p-8">
           <div className="lg:hidden flex items-center gap-2 mb-6">
             <BrandMark className="h-9 w-9 rounded-xl" />
             <span className="font-semibold">IntelliPond</span>
           </div>
-          <h1 className="text-2xl font-semibold">Operator Access</h1>
-          <p className="text-sm text-muted-foreground mt-1">Sign in to your monitoring console.</p>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h1 className="text-2xl font-semibold">Operator Access</h1>
+              <p className="text-sm text-muted-foreground mt-1">Sign in to your monitoring console.</p>
+            </div>
+            <ThemeControl iconOnly className="border border-border bg-card text-foreground hover:bg-accent hover:text-accent-foreground" />
+          </div>
           <Tabs defaultValue={initialTab} className="mt-6">
             <TabsList className="grid grid-cols-2 w-full"><TabsTrigger value="signin">Sign in</TabsTrigger><TabsTrigger value="signup">Create account</TabsTrigger></TabsList>
             <TabsContent value="signin">
@@ -106,7 +120,6 @@ const Auth = () => {
         </Card>
       </div>
     </div>
-    </>
   );
 };
 export default Auth;

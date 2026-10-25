@@ -2,7 +2,7 @@ import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { LayoutDashboard, Fish, Bell, Settings, Database, Users, FileText, LogOut, Waves, Sliders, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
 import BrandMark from "@/components/BrandMark";
@@ -108,6 +108,7 @@ export const AppShell = ({ children, admin = false }: { children: React.ReactNod
                 </Button>
               </SheetTrigger>
               <SheetContent side="left" className="p-0 w-72 bg-sidebar border-0">
+                <SheetTitle className="sr-only">Main navigation</SheetTitle>
                 <SidebarContent admin={admin} items={items} user={user} role={role} onNavigate={handleNavigate} onSignOut={handleSignOut} showThemeControl={false} />
               </SheetContent>
             </Sheet>

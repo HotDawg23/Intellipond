@@ -1,13 +1,14 @@
 import { Link, useNavigate } from "react-router-dom";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
-import type { MouseEvent } from "react";
+import type { FocusEvent, MouseEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import useEmblaCarousel from "embla-carousel-react";
 import SpotlightCard from "@/components/SpotlightCard";
 import BrandMark from "@/components/BrandMark";
 import { ThemeControl } from "@/components/ThemeControl";
-import { Waves, ArrowRight, Settings2, LoaderCircle } from "lucide-react";
+import { Waves, ArrowLeft, ArrowRight, Settings2, LoaderCircle } from "lucide-react";
 import heroImg from "@/assets/hero-water.jpg";
 import waterQualityImg from "@/assets/feature-water-quality.png";
 import growthImg from "@/assets/feature-growth-monitoring.png";
@@ -19,15 +20,179 @@ const RippleDistortion = lazy(() => import("@/components/RippleDistortion"));
 const PondScene = lazy(() => import("@/components/PondScene"));
 const AquariumScene = lazy(() => import("@/components/AquariumScene"));
 
+const featureCards = [
+  {
+    title: "Water quality monitoring",
+    text: "Track dissolved oxygen, pH, temperature and turbidity from live sensor readings.",
+    image: waterQualityImg,
+  },
+  {
+    title: "Growth monitoring",
+    text: "Track recorded fish weight, length and feeding notes over time.",
+    image: growthImg,
+  },
+  {
+    title: "Smart alerts",
+    text: "Get plain-language warnings and recommendations the moment thresholds trip.",
+    image: alertsImg,
+  },
+  {
+    title: "Role-based access",
+    text: "Operators monitor pond conditions. Admins manage sensors, thresholds and reports.",
+    image: accessImg,
+  },
+];
+
 const Index = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const userInitial = String(user?.user_metadata?.full_name ?? user?.email ?? "U").trim().charAt(0).toUpperCase() || "U";
   const [ripple, setRipple] = useState(1);
   const [caustics, setCaustics] = useState(0.7);
   const [isStartingSignIn, setIsStartingSignIn] = useState(false);
   const [loadPond, setLoadPond] = useState(false);
   const [loadAquarium, setLoadAquarium] = useState(false);
+  const [activeFeature, setActiveFeature] = useState(0);
+  const [isCarouselDragging, setIsCarouselDragging] = useState(false);
+  const [isCarouselFocused, setIsCarouselFocused] = useState(false);
+  const [isCarouselVisible, setIsCarouselVisible] = useState(false);
+  const [autoplayResetKey, setAutoplayResetKey] = useState(0);
+  const [isMobileCarousel, setIsMobileCarousel] = useState(false);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+  const [isDocumentVisible, setIsDocumentVisible] = useState(true);
   const aquariumMountRef = useRef<HTMLDivElement>(null);
+  const featureCarouselContainerRef = useRef<HTMLDivElement>(null);
+  const lastInteractionWasKeyboardRef = useRef(false);
+  const [featureCarouselRef, featureCarouselApi] = useEmblaCarousel({
+    align: "start",
+    loop: true,
+    breakpoints: { "(min-width: 768px)": { active: false } },
+  });
+
+  useEffect(() => {
+    if (!featureCarouselApi) return;
+
+    const updateActiveFeature = () => setActiveFeature(featureCarouselApi.selectedScrollSnap());
+    const handlePointerDown = () => setIsCarouselDragging(true);
+    const handlePointerUp = () => {
+      setIsCarouselDragging(false);
+      setAutoplayResetKey((key) => key + 1);
+    };
+
+    updateActiveFeature();
+    featureCarouselApi.on("select", updateActiveFeature);
+    featureCarouselApi.on("pointerDown", handlePointerDown);
+    featureCarouselApi.on("pointerUp", handlePointerUp);
+
+    return () => {
+      featureCarouselApi.off("select", updateActiveFeature);
+      featureCarouselApi.off("pointerDown", handlePointerDown);
+      featureCarouselApi.off("pointerUp", handlePointerUp);
+    };
+  }, [featureCarouselApi]);
+
+  useEffect(() => {
+    const mobileQuery = window.matchMedia("(max-width: 767px)");
+    const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const syncPreferences = () => {
+      setIsMobileCarousel(mobileQuery.matches);
+      setPrefersReducedMotion(reducedMotionQuery.matches);
+    };
+
+    syncPreferences();
+    mobileQuery.addEventListener("change", syncPreferences);
+    reducedMotionQuery.addEventListener("change", syncPreferences);
+
+    return () => {
+      mobileQuery.removeEventListener("change", syncPreferences);
+      reducedMotionQuery.removeEventListener("change", syncPreferences);
+    };
+  }, []);
+
+  useEffect(() => {
+    const updateDocumentVisibility = () => setIsDocumentVisible(document.visibilityState === "visible");
+    updateDocumentVisibility();
+    document.addEventListener("visibilitychange", updateDocumentVisibility);
+    return () => document.removeEventListener("visibilitychange", updateDocumentVisibility);
+  }, []);
+
+  useEffect(() => {
+    const container = featureCarouselContainerRef.current;
+    if (!container) return;
+
+    if (!("IntersectionObserver" in window)) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(([entry]) => {
+      setIsCarouselVisible(entry.isIntersecting && entry.intersectionRatio >= 0.15);
+    }, { threshold: 0.15 });
+
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const markKeyboardInteraction = () => {
+      lastInteractionWasKeyboardRef.current = true;
+    };
+    const markPointerInteraction = () => {
+      lastInteractionWasKeyboardRef.current = false;
+    };
+
+    document.addEventListener("keydown", markKeyboardInteraction, true);
+    document.addEventListener("pointerdown", markPointerInteraction, true);
+    document.addEventListener("touchstart", markPointerInteraction, { capture: true, passive: true });
+
+    return () => {
+      document.removeEventListener("keydown", markKeyboardInteraction, true);
+      document.removeEventListener("pointerdown", markPointerInteraction, true);
+      document.removeEventListener("touchstart", markPointerInteraction, true);
+    };
+  }, []);
+
+  const handleCarouselFocus = () => {
+    setAutoplayResetKey((key) => key + 1);
+    if (lastInteractionWasKeyboardRef.current) setIsCarouselFocused(true);
+  };
+
+  const handleCarouselBlur = (event: FocusEvent<HTMLDivElement>) => {
+    const nextTarget = event.relatedTarget;
+    if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) return;
+
+    setIsCarouselFocused(false);
+    setAutoplayResetKey((key) => key + 1);
+  };
+
+  const handleCarouselPointerDown = () => {
+    lastInteractionWasKeyboardRef.current = false;
+    setIsCarouselFocused(false);
+  };
+
+  useEffect(() => {
+    if (
+      !featureCarouselApi ||
+      !isMobileCarousel ||
+      !isCarouselVisible ||
+      prefersReducedMotion ||
+      isCarouselDragging ||
+      isCarouselFocused ||
+      !isDocumentVisible
+    ) return;
+
+    const timer = window.setTimeout(() => featureCarouselApi.scrollNext(), 7000);
+    return () => window.clearTimeout(timer);
+  }, [
+    activeFeature,
+    autoplayResetKey,
+    featureCarouselApi,
+    isCarouselDragging,
+    isCarouselFocused,
+    isCarouselVisible,
+    isDocumentVisible,
+    isMobileCarousel,
+    prefersReducedMotion,
+  ]);
 
   const scrollToSection = (event: MouseEvent<HTMLAnchorElement>, sectionId: string) => {
     event.preventDefault();
@@ -104,11 +269,19 @@ const Index = () => {
                 <Link to="/auth?tab=signup"><span className="sm:hidden">Sign up</span><span className="hidden sm:inline">Create an account</span></Link>
               </Button>
             )}
-            <Link to={user ? "/dashboard" : "/auth"} onClick={handleGetStarted}>
-              <Button variant="secondary" size="sm" disabled={isStartingSignIn} aria-busy={isStartingSignIn} className="bg-white text-primary hover:bg-white/90 dark:text-slate-900">
-                {isStartingSignIn ? <><LoaderCircle aria-hidden="true" className="mr-2 h-4 w-4 animate-spin" />Loading</> : user ? "Open console" : "Sign in"}
+            {user ? (
+              <Button asChild variant="secondary" size="icon" className="h-9 w-9 rounded-full bg-white p-0 text-primary shadow-sm hover:bg-white/90 dark:text-slate-900">
+                <Link to="/dashboard" aria-label="Open console" title="Open console">
+                  {userInitial}
+                </Link>
               </Button>
-            </Link>
+            ) : (
+              <Link to="/auth" onClick={handleGetStarted}>
+                <Button variant="secondary" size="sm" disabled={isStartingSignIn} aria-busy={isStartingSignIn} className="bg-white text-primary hover:bg-white/90 dark:text-slate-900">
+                  {isStartingSignIn ? <><LoaderCircle aria-hidden="true" className="mr-2 h-4 w-4 animate-spin" />Loading</> : "Sign in"}
+                </Button>
+              </Link>
+            )}
           </div>
         </div>
       </header>
@@ -190,54 +363,106 @@ const Index = () => {
             <div className="text-xs uppercase tracking-widest text-accent font-medium mb-3">Built for operators</div>
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight">Everything that matters about your pond — nothing that doesn't.</h2>
           </FadeContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-14">
-            {[
-              {
-                title: "Water quality monitoring",
-                text: "Track dissolved oxygen, pH, temperature and turbidity from live sensor readings.",
-                image: waterQualityImg,
-              },
-              {
-                title: "Growth monitoring",
-                text: "Track recorded fish weight, length and feeding notes over time.",
-                image: growthImg,
-              },
-              {
-                title: "Smart alerts",
-                text: "Get plain-language warnings and recommendations the moment thresholds trip.",
-                image: alertsImg,
-              },
-              {
-                title: "Role-based access",
-                text: "Operators monitor pond conditions. Admins manage sensors, thresholds and reports.",
-                image: accessImg,
-              },
-            ].map((f, i) => (
-              <FadeContent key={f.title} className="w-full min-w-0" blur duration={850} delay={i * 100}>
-                <SpotlightCard
-                  role="group"
-                  aria-label={f.title + ". " + f.text}
-                  tabIndex={0}
-                  spotlightColor="rgba(0, 229, 255, 0.2)"
-                  className="feature-card"
-                >
-                  <img
-                    src={f.image}
-                    alt=""
-                    loading="lazy"
-                    decoding="async"
-                    className="feature-card__image"
-                  />
-                  <div aria-hidden="true" className="feature-card__gradient" />
-                  <div className="feature-card__content">
-                    <h3 className="feature-card__title">{f.title}</h3>
-                    <FadeContent className="feature-card__description" slideUp={20} duration={700} delay={150}>
-                      <p>{f.text}</p>
+          <div
+            ref={featureCarouselContainerRef}
+            className="feature-carousel mt-14"
+            role="region"
+            aria-label="Platform features"
+            aria-roledescription="carousel"
+            onFocusCapture={handleCarouselFocus}
+            onBlurCapture={handleCarouselBlur}
+            onPointerDownCapture={handleCarouselPointerDown}
+            onTouchStartCapture={handleCarouselPointerDown}
+          >
+            <div
+              ref={featureCarouselRef}
+              className="feature-carousel-track"
+            >
+              <div className="feature-carousel-slides">
+                {featureCards.map((f, i) => (
+                  <div
+                    key={f.title}
+                    className="feature-carousel-slide"
+                    role="group"
+                    aria-roledescription="slide"
+                    aria-label={`${i + 1} of ${featureCards.length}: ${f.title}`}
+                  >
+                    <FadeContent className="w-full min-w-0" blur duration={850} delay={i * 100}>
+                      <SpotlightCard
+                        role="group"
+                        aria-label={f.title + ". " + f.text}
+                        tabIndex={0}
+                        spotlightColor="rgba(0, 229, 255, 0.2)"
+                        className="feature-card"
+                      >
+                        <img
+                          src={f.image}
+                          alt=""
+                          loading="lazy"
+                          decoding="async"
+                          className="feature-card__image"
+                        />
+                        <div aria-hidden="true" className="feature-card__gradient" />
+                        <div className="feature-card__content">
+                          <h3 className="feature-card__title">{f.title}</h3>
+                          <FadeContent className="feature-card__description" slideUp={20} duration={700} delay={150}>
+                            <p>{f.text}</p>
+                          </FadeContent>
+                        </div>
+                      </SpotlightCard>
                     </FadeContent>
                   </div>
-                </SpotlightCard>
-              </FadeContent>
-            ))}
+                ))}
+              </div>
+            </div>
+            <div className="feature-carousel-controls md:hidden">
+              <Button
+                variant="outline"
+                size="sm"
+                className="min-h-11 px-2"
+                onClick={() => {
+                  setAutoplayResetKey((key) => key + 1);
+                  featureCarouselApi?.scrollPrev(prefersReducedMotion);
+                }}
+              >
+                <ArrowLeft aria-hidden="true" />
+                Previous
+              </Button>
+              <div className="feature-carousel-indicators" role="group" aria-label="Choose a platform feature">
+                {featureCards.map((feature, index) => (
+                  <button
+                    key={feature.title}
+                    type="button"
+                    className="feature-carousel-indicator"
+                    aria-label={`Show ${feature.title}`}
+                    aria-current={activeFeature === index ? "true" : undefined}
+                    onClick={() => {
+                      setAutoplayResetKey((key) => key + 1);
+                      featureCarouselApi?.scrollTo(index, prefersReducedMotion);
+                    }}
+                  />
+                ))}
+                <span
+                  className="sr-only"
+                  aria-live={prefersReducedMotion ? "polite" : "off"}
+                  aria-atomic="true"
+                >
+                  {featureCards[activeFeature]?.title}, slide {activeFeature + 1} of {featureCards.length}
+                </span>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="min-h-11 px-2"
+                onClick={() => {
+                  setAutoplayResetKey((key) => key + 1);
+                  featureCarouselApi?.scrollNext(prefersReducedMotion);
+                }}
+              >
+                Next
+                <ArrowRight aria-hidden="true" />
+              </Button>
+            </div>
           </div>
         </div>
       </section>

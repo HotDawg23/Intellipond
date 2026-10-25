@@ -108,6 +108,89 @@
   text-shadow: 0 1px 8px rgb(0 0 0 / 28%);
 }
 
+.feature-carousel-track {
+  overflow: hidden;
+  touch-action: pan-y pinch-zoom;
+  padding-block: 3px;
+  margin-block: -3px;
+}
+
+.feature-carousel-slides {
+  display: flex;
+}
+
+.feature-carousel-slide {
+  flex: 0 0 100%;
+  min-width: 0;
+  padding-inline: 0.25rem;
+}
+
+.feature-carousel-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.375rem;
+  margin-top: 1rem;
+}
+
+.feature-carousel-indicators {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.feature-carousel-indicator {
+  display: grid;
+  width: 1.5rem;
+  height: 2.75rem;
+  place-items: center;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.feature-carousel-indicator::before {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: hsl(var(--muted-foreground) / 0.45);
+  content: "";
+  transition: background-color 180ms ease, transform 180ms ease;
+}
+
+.feature-carousel-indicator[aria-current="true"]::before {
+  background: hsl(var(--accent));
+  transform: scale(1.35);
+}
+
+.feature-carousel-indicator:focus-visible {
+  border-radius: 0.5rem;
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 1px;
+}
+
+@media (min-width: 768px) {
+  .feature-carousel-track {
+    overflow: visible;
+  }
+
+  .feature-carousel-slides {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem;
+  }
+
+  .feature-carousel-slide {
+    flex: initial;
+    padding-inline: 0;
+  }
+
+  .feature-carousel-controls {
+    display: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .card-spotlight::before {
     transition: none;
@@ -119,5 +202,9 @@
 
   .feature-card:hover .feature-card__image {
     transform: none;
+  }
+
+  .feature-carousel-indicator::before {
+    transition: none;
   }
 }
