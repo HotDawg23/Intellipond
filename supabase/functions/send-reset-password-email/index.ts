@@ -38,6 +38,22 @@ const getAllowedRedirect = (redirectTo: unknown): string | null => {
   }
 };
 
+const createHmacDigester = async (secret: string) => {
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+
+  return async (value: string) => {
+    const signature = new Uint8Array(await crypto.subtle.sign("HMAC", key, encoder.encode(value)));
+    return Array.from(signature, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  };
+};
+
 Deno.serve(async (req) => {
   const origin = req.headers.get("origin");
   const corsHeaders = corsHeadersFor(origin);
@@ -70,10 +86,54 @@ Deno.serve(async (req) => {
       });
     }
 
-    const admin = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!supabaseUrl || !serviceRoleKey) throw new Error("Supabase function credentials are not configured");
+
+    const admin = createClient(supabaseUrl, serviceRoleKey);
+    const digest = await createHmacDigester(serviceRoleKey);
+    const emailDigest = await digest(`email:${email.trim().toLowerCase()}`);
+    // Supabase's hosted edge proxy supplies this header. Avoid falling back to
+    // X-Forwarded-For, which a direct caller could forge.
+    const forwardedClientIp = req.headers.get("cf-connecting-ip")?.trim();
+    const supabaseHostname = new URL(supabaseUrl).hostname;
+    const isLocalSupabase = ["localhost", "127.0.0.1", "::1", "[::1]", "kong"].includes(supabaseHostname);
+    const clientIp = forwardedClientIp || (isLocalSupabase ? "local-development" : null);
+    if (!clientIp) {
+      console.error("password reset rate limit could not identify the client IP");
+      return new Response(JSON.stringify({ error: "Could not process the reset request." }), {
+        status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const ipDigest = await digest(`ip:${clientIp}`);
+
+    const { data: rateLimitRows, error: rateLimitError } = await admin.rpc(
+      "consume_password_reset_rate_limit",
+      { p_email_digest: emailDigest, p_ip_digest: ipDigest },
     );
+
+    if (rateLimitError) {
+      console.error("password reset rate limit failed:", rateLimitError.message);
+      return new Response(JSON.stringify({ error: "Could not process the reset request." }), {
+        status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const rateLimit = Array.isArray(rateLimitRows) ? rateLimitRows[0] : undefined;
+    if (!rateLimit || typeof rateLimit.allowed !== "boolean") {
+      console.error("password reset rate limit returned an invalid result");
+      return new Response(JSON.stringify({ error: "Could not process the reset request." }), {
+        status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (!rateLimit.allowed) {
+      const retryAfterSeconds = Math.max(1, Number(rateLimit.retry_after_seconds) || 1);
+      return new Response(JSON.stringify({ error: "Too many reset requests. Please wait before trying again." }), {
+        status: 429,
+        headers: { ...corsHeaders, "Content-Type": "application/json", "Retry-After": String(retryAfterSeconds) },
+      });
+    }
 
     // Generate a recovery link via admin API (does NOT send any email)
     const { data, error } = await admin.auth.admin.generateLink({

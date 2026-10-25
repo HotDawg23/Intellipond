@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { FunctionsHttpError } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +27,9 @@ const ForgotPassword = () => {
       },
     });
     setLoading(false);
+    if (error instanceof FunctionsHttpError && error.context.status === 429) {
+      return toast.error("Too many reset requests. Please wait before trying again.");
+    }
     if (error) return toast.error(error.message ?? "Could not send reset email.");
     setSent(true);
     toast.success("Reset link sent — check your inbox.");

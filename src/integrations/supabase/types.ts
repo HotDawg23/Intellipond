@@ -555,6 +555,16 @@ export type Database = {
         }
         Returns: undefined
       }
+      consume_password_reset_rate_limit: {
+        Args: {
+          p_email_digest: string
+          p_ip_digest: string
+        }
+        Returns: {
+          allowed: boolean
+          retry_after_seconds: number
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
