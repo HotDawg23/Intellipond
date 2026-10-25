@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Database } from "@/integrations/supabase/types";
 import { Users as UsersIcon, ShieldCheck, Clock, Check } from "lucide-react";
 import { toast } from "sonner";
@@ -66,10 +67,8 @@ const Users = () => {
     { key: "operators", label: "Operators", Icon: UsersIcon },
     { key: "admins", label: "Admins", Icon: ShieldCheck },
   ] as const;
-  const filterButtonClass = (active: boolean) => `h-9 gap-2 whitespace-nowrap rounded-md px-3.5 text-sm shadow-none transition-colors ${active
-    ? "border-blue-600 bg-blue-600 text-white hover:border-blue-700 hover:bg-blue-700 hover:text-white dark:border-cyan-400 dark:bg-cyan-400 dark:text-slate-950 dark:hover:border-cyan-300 dark:hover:bg-cyan-300 dark:hover:text-slate-950"
-    : "border-border bg-background text-foreground hover:border-blue-600 hover:bg-blue-600 hover:text-white dark:hover:border-cyan-400 dark:hover:bg-cyan-400 dark:hover:text-slate-950"
-    }`;
+  const selectedFilter = filters.find(filter => filter.key === activeGroup);
+  const SelectedIcon = selectedFilter?.Icon;
   const emptyMessages: Record<UserGroup, string> = {
     all: "No approved accounts yet.",
     pending: "No pending sign-ups.",
@@ -86,33 +85,33 @@ const Users = () => {
           <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl gradient-aqua text-white font-semibold shadow-sm">
             {(u.full_name || u.email || "?")[0]?.toUpperCase()}
           </div>
-          <div className="min-w-0">
-            <div className="truncate font-semibold">{u.full_name || "Unnamed"}</div>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="min-w-0 max-w-full truncate font-semibold">{u.full_name || "Unnamed"}</span>
+              {isAdmin ? (
+                <Badge variant="outline" className="border-0 bg-cyan-100 text-cyan-900 hover:bg-cyan-100 dark:bg-cyan-950 dark:text-cyan-200 dark:hover:bg-cyan-950"><ShieldCheck className="mr-1 h-3 w-3" />Admin</Badge>
+              ) : isApproved ? (
+                <Badge variant="secondary">{u.roles.includes("operator") ? "Operator" : "Approved"}</Badge>
+              ) : (
+                <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200"><Clock className="mr-1 h-3 w-3" />Pending</Badge>
+              )}
+            </div>
             <div className="truncate text-xs text-muted-foreground">{u.email}</div>
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-          {isAdmin ? (
-            <Badge variant="outline" className="border-0 bg-cyan-100 text-cyan-900 hover:bg-cyan-100 dark:bg-cyan-950 dark:text-cyan-200 dark:hover:bg-cyan-950"><ShieldCheck className="mr-1 h-3 w-3" />Admin</Badge>
-          ) : isApproved ? (
-            <Badge variant="secondary">{u.roles.includes("operator") ? "Operator" : "Approved"}</Badge>
-          ) : (
-            <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200"><Clock className="mr-1 h-3 w-3" />Pending</Badge>
-          )}
-          <div className="flex w-full flex-wrap gap-2 sm:w-auto">
-            {!isApproved ? (
-              <Button size="sm" className="flex-1 gradient-aqua text-white border-0 hover:opacity-90 sm:flex-none" onClick={() => setApproved(u.id, true)}>
-                <Check className="h-4 w-4 mr-1" /> Approve
-              </Button>
-            ) : (
-              !isAdmin && (
-                <Button size="sm" variant="outline" className="flex-1 sm:flex-none" onClick={() => setApproved(u.id, false)}>Revoke access</Button>
-              )
-            )}
-            <Button size="sm" variant="outline" className="flex-1 sm:flex-none" onClick={() => toggleAdmin(u.id, isAdmin)}>
-              {isAdmin ? "Revoke admin" : "Make admin"}
+        <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
+          {!isApproved ? (
+            <Button size="sm" className="flex-1 gradient-aqua text-white border-0 hover:opacity-90 sm:flex-none" onClick={() => setApproved(u.id, true)}>
+              <Check className="h-4 w-4 mr-1" /> Approve
             </Button>
-          </div>
+          ) : (
+            !isAdmin && (
+              <Button size="sm" variant="outline" className="flex-1 sm:flex-none" onClick={() => setApproved(u.id, false)}>Revoke access</Button>
+            )
+          )}
+          <Button size="sm" variant="outline" className="flex-1 sm:flex-none" onClick={() => toggleAdmin(u.id, isAdmin)}>
+            {isAdmin ? "Revoke admin" : "Make admin"}
+          </Button>
         </div>
       </div>
     );
@@ -122,26 +121,31 @@ const Users = () => {
     <AppShell admin>
       <PageHeader title="Users" subtitle="Approve new sign-ups and manage operator and admin access." />
       <Card className="overflow-hidden border-border/70 shadow-sm">
-        <div role="group" aria-label="Filter users by account type" className="flex flex-wrap gap-2 border-b border-border px-4 py-4 sm:px-5">
-          {filters.map(({ key, label, Icon }) => {
-            const active = activeGroup === key;
-            return (
-              <Button
-                key={key}
-                type="button"
-                variant="outline"
-                aria-pressed={active}
-                onClick={() => setActiveGroup(key)}
-                className={filterButtonClass(active)}
-              >
-                {Icon && <Icon className="h-4 w-4" aria-hidden="true" />}
-                {label}
-                <span className="text-xs font-medium tabular-nums">
-                  {hasLoaded ? groups[key].length : "—"}
+        <div className="border-b border-border px-4 py-4 sm:px-5">
+          <Select value={activeGroup} onValueChange={(value: UserGroup) => setActiveGroup(value)}>
+            <SelectTrigger aria-label="Filter users by account type" className="w-full sm:w-56">
+              <SelectValue>
+                <span className="inline-flex items-center gap-2">
+                  {SelectedIcon && <SelectedIcon className="h-4 w-4" aria-hidden="true" />}
+                  {selectedFilter?.label}
+                  <span className="text-sm font-medium tabular-nums">({hasLoaded ? groups[activeGroup].length : "—"})</span>
                 </span>
-              </Button>
-            );
-          })}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent align="start">
+              {filters.map(({ key, label, Icon }) => (
+                <SelectItem key={key} value={key} textValue={label}>
+                  <span className="inline-flex items-center gap-2">
+                    {Icon && <Icon className="h-4 w-4" aria-hidden="true" />}
+                    <span>{label}</span>
+                    <span className="text-sm font-medium tabular-nums text-muted-foreground">
+                      ({hasLoaded ? groups[key].length : "—"})
+                    </span>
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         {loadError && <div className="p-4 sm:p-5"><LoadError message={loadError} onRetry={() => void load()} /></div>}
         {!hasLoaded ? (

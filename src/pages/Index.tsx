@@ -263,9 +263,9 @@ const Index = () => {
             <a href="#research" onClick={(event) => scrollToSection(event, "research")} className="hover:text-white">Research</a>
           </nav>
           <div className="col-start-2 row-start-1 md:col-auto md:row-auto flex items-center gap-2">
-            <ThemeControl iconOnly className="border border-white/50 bg-white/10 text-white hover:bg-white/20 hover:text-white" />
+            <ThemeControl iconOnly className="h-9 w-9 border border-white/50 bg-white/10 p-0 text-white hover:bg-white/20 hover:text-white" />
             {!user && (
-              <Button asChild variant="outline" size="sm" className="whitespace-nowrap border-white/50 bg-white/10 px-2 text-xs text-white hover:bg-white/20 hover:text-white sm:px-3 sm:text-sm">
+              <Button asChild variant="outline" size="sm" className="h-9 min-w-[4.25rem] whitespace-nowrap border-white/50 bg-white/10 px-2 text-sm text-white hover:bg-white/20 hover:text-white sm:min-w-0 sm:px-3">
                 <Link to="/auth?tab=signup"><span className="sm:hidden">Sign up</span><span className="hidden sm:inline">Create an account</span></Link>
               </Button>
             )}
@@ -277,7 +277,7 @@ const Index = () => {
               </Button>
             ) : (
               <Link to="/auth" onClick={handleGetStarted}>
-                <Button variant="secondary" size="sm" disabled={isStartingSignIn} aria-busy={isStartingSignIn} className="bg-white text-primary hover:bg-white/90 dark:text-slate-900">
+                <Button variant="secondary" size="sm" disabled={isStartingSignIn} aria-busy={isStartingSignIn} className="h-9 min-w-[4.25rem] bg-white px-2 text-sm text-primary hover:bg-white/90 dark:text-slate-900 sm:min-w-0 sm:px-3">
                   {isStartingSignIn ? <><LoaderCircle aria-hidden="true" className="mr-2 h-4 w-4 animate-spin" />Loading</> : "Sign in"}
                 </Button>
               </Link>
@@ -417,16 +417,16 @@ const Index = () => {
             </div>
             <div className="feature-carousel-controls md:hidden">
               <Button
-                variant="outline"
-                size="sm"
-                className="min-h-11 px-2"
+                variant="ghost"
+                size="icon"
+                className="h-11 w-11 hover:bg-transparent hover:text-inherit [-webkit-tap-highlight-color:transparent]"
+                aria-label="Previous feature"
                 onClick={() => {
                   setAutoplayResetKey((key) => key + 1);
                   featureCarouselApi?.scrollPrev(prefersReducedMotion);
                 }}
               >
                 <ArrowLeft aria-hidden="true" />
-                Previous
               </Button>
               <div className="feature-carousel-indicators" role="group" aria-label="Choose a platform feature">
                 {featureCards.map((feature, index) => (
@@ -451,15 +451,15 @@ const Index = () => {
                 </span>
               </div>
               <Button
-                variant="outline"
-                size="sm"
-                className="min-h-11 px-2"
+                variant="ghost"
+                size="icon"
+                className="h-11 w-11 hover:bg-transparent hover:text-inherit [-webkit-tap-highlight-color:transparent]"
+                aria-label="Next feature"
                 onClick={() => {
                   setAutoplayResetKey((key) => key + 1);
                   featureCarouselApi?.scrollNext(prefersReducedMotion);
                 }}
               >
-                Next
                 <ArrowRight aria-hidden="true" />
               </Button>
             </div>

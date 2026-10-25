@@ -141,14 +141,27 @@ const Ponds = () => {
         title="Pond Profiles"
         subtitle="Manage your aquaculture sites."
         actions={
-          <Button onClick={startAdd} className="gradient-aqua border-0 text-white">
-            <Plus className="mr-2 h-4 w-4" />New pond
-          </Button>
+          <>
+            <Button onClick={startAdd} className="gradient-aqua border-0 text-white">
+              <Plus className="mr-2 h-4 w-4" />New pond
+            </Button>
+            {ponds.length > 0 && (
+              <Button
+                type="button"
+                variant={deleteMode ? "secondary" : "outline"}
+                onClick={() => setDeleteMode(current => !current)}
+                aria-pressed={deleteMode}
+              >
+                {deleteMode ? <X className="mr-2 h-4 w-4" /> : <Trash2 className="mr-2 h-4 w-4" />}
+                {deleteMode ? "Done" : "Delete ponds"}
+              </Button>
+            )}
+          </>
         }
       />
 
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex min-w-0 flex-1 items-center justify-start gap-3 py-2">
+      <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+        <div className="flex min-w-0 items-start gap-3 py-2 sm:flex-1 sm:items-center">
           <span className="shrink-0 rounded-lg bg-primary/10 p-2 text-primary">
             <Info className="h-4 w-4" aria-hidden="true" />
           </span>
@@ -158,23 +171,9 @@ const Ponds = () => {
               : "Pond profiles hold site details. Stocking dates and fish counts are recorded for each batch in Growth Records."}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground">
-            {hasLoaded ? `${ponds.length} ${ponds.length === 1 ? "pond" : "ponds"}` : "—"}
-          </span>
-          {ponds.length > 0 && (
-            <Button
-              type="button"
-              size="sm"
-              variant={deleteMode ? "secondary" : "outline"}
-              onClick={() => setDeleteMode(current => !current)}
-              aria-pressed={deleteMode}
-            >
-              {deleteMode ? <X className="mr-2 h-4 w-4" /> : <Trash2 className="mr-2 h-4 w-4" />}
-              {deleteMode ? "Done" : "Delete ponds"}
-            </Button>
-          )}
-        </div>
+        <span className="self-start whitespace-nowrap rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-muted-foreground sm:self-auto">
+          {hasLoaded ? `${ponds.length} ${ponds.length === 1 ? "pond" : "ponds"}` : "—"}
+        </span>
       </div>
 
       {loadError && <div className="mb-4"><LoadError message={loadError} onRetry={() => void load()} /></div>}

@@ -76,8 +76,8 @@ From the application repository, regenerate the private candidate and a
 comparison report (replace the paths with the locations of your private files):
 
 ```sh
-python ml/train_growth_model.py --bfar-csv ../bfar_growth_training_data.csv --output ../bfar_growth_model_candidate.json
-python ml/compare_growth_models.py --bfar-csv ../bfar_growth_training_data.csv --output ../bfar_growth_comparison.json
+python ml/train_growth_model.py --bfar-csv ../private-bfar-growth/bfar_growth_training_data.csv --output ../private-bfar-growth/bfar_growth_model_candidate.json
+python ml/compare_growth_models.py --bfar-csv ../private-bfar-growth/bfar_growth_training_data.csv --output ../private-bfar-growth/bfar_growth_comparison.json
 ```
 
 The comparison holds out whole pond cohorts and uses the same observed
@@ -95,6 +95,47 @@ establish a reliable fingerling model, and there are no exact seven-day BFAR
 pairs. Keep the published model and its Research estimate label until
 independent cycles support a replacement and the existing seven-day validation
 rule can be evaluated. Do not call the reference range a confidence interval.
+
+## Experimental linear-growth comparison
+
+The comparison script also fits two experimental models: `pooled_linear`
+uses all available training ponds, and `bfar_linear` uses only the other BFAR
+ponds and is evaluated only in the BFAR scope. Each model takes the median
+daily absolute gain within each training pond, then the median across ponds.
+It predicts latest measurement + daily gain * forecast days, floored at zero.
+This avoids exponential extrapolation, but a shared absolute gain can still
+overpredict growth for small fish. These are experimental comparisons, not
+models loaded by the application.
+
+`recent_linear` is an additional baseline using only the latest preceding
+valid interval from the held-out pond. Both recent baselines use measurements
+available before the target interval, including when earlier rows contain
+missing values. Rows with missing endpoints are skipped; no measurements are
+invented to fill gaps.
+
+```sh
+python ml/compare_growth_models.py --bfar-csv ../private-bfar-growth/bfar_growth_training_data.csv --output ../private-bfar-growth/bfar_growth_linear_comparison.json
+python -m unittest discover -s ml -p "test_*.py" -v
+```
+
+The report includes separate WorldFish and BFAR results, interval predictions,
+per-method evaluated counts, paired counts, and a deterministic comparison
+version. Compare errors only when methods cover the same intervals; a missing
+training fold is not a zero-error prediction. The `bfar_fingerling` scope names
+the supplied dataset, not an automatic life-stage classifier.
+
+Entire ponds are excluded from training for each test fold, following the
+[non-overlapping group validation principle](https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.GroupKFold.html).
+The two supplied BFAR ponds share a culture cycle, so holding out one pond
+does not establish performance on an independent cycle. Trying models on this
+small dataset is exploratory; choosing one from these results requires fresh
+independent validation. The linear candidates do not improve both measurements
+consistently across the available sources and remain research-only. Their
+long-interval errors do not validate the app's seven-day horizon.
+
+Keep comparison reports outside the repository because they contain private
+BFAR observations and predictions. This workflow does not update
+`public/growth-model.json` or add confidence intervals.
 
 ## Growth records and water averages
 

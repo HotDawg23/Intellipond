@@ -377,11 +377,11 @@ const AdminOverview = () => {
                 <div className="flex min-h-10 shrink-0 items-center justify-between border-t border-border px-3">
                   <span className="text-xs text-muted-foreground">Page {alertsPage + 1} of {alertsPageCount}</span>
                   <div className="flex gap-1">
-                    <Button variant="ghost" size="sm" disabled={alertsLoading || alertsPage === 0} onClick={() => setAlertsPage(page => page - 1)} aria-label="Previous alert page">
-                      <ArrowLeft aria-hidden="true" /> Previous
+                    <Button variant="ghost" size="icon" className={`h-11 w-11 hover:bg-transparent hover:text-inherit [-webkit-tap-highlight-color:transparent] ${alertsLoading && alertsPage !== 0 ? "disabled:opacity-100" : ""}`} disabled={alertsLoading || alertsPage === 0} onClick={() => setAlertsPage(page => page - 1)} aria-label="Previous alert page">
+                      <ArrowLeft aria-hidden="true" />
                     </Button>
-                    <Button variant="ghost" size="sm" disabled={alertsLoading || alertsPage >= alertsPageCount - 1} onClick={() => setAlertsPage(page => page + 1)} aria-label="Next alert page">
-                      Next <ArrowRight aria-hidden="true" />
+                    <Button variant="ghost" size="icon" className={`h-11 w-11 hover:bg-transparent hover:text-inherit [-webkit-tap-highlight-color:transparent] ${alertsLoading && alertsPage < alertsPageCount - 1 ? "disabled:opacity-100" : ""}`} disabled={alertsLoading || alertsPage >= alertsPageCount - 1} onClick={() => setAlertsPage(page => page + 1)} aria-label="Next alert page">
+                      <ArrowRight aria-hidden="true" />
                     </Button>
                   </div>
                 </div>
@@ -440,11 +440,11 @@ const AdminOverview = () => {
                 <div className="flex min-h-10 shrink-0 items-center justify-between border-t border-border px-3">
                   <span className="text-xs text-muted-foreground">Page {readingsPage + 1} of {readingsPageCount}</span>
                   <div className="flex gap-1">
-                    <Button variant="ghost" size="sm" disabled={readingsLoading || readingsPage === 0} onClick={() => setReadingsPage(page => page - 1)} aria-label="Previous sensor reading page">
-                      <ArrowLeft aria-hidden="true" /> Previous
+                    <Button variant="ghost" size="icon" className={`h-11 w-11 hover:bg-transparent hover:text-inherit [-webkit-tap-highlight-color:transparent] ${readingsLoading && readingsPage !== 0 ? "disabled:opacity-100" : ""}`} disabled={readingsLoading || readingsPage === 0} onClick={() => setReadingsPage(page => page - 1)} aria-label="Previous sensor reading page">
+                      <ArrowLeft aria-hidden="true" />
                     </Button>
-                    <Button variant="ghost" size="sm" disabled={readingsLoading || readingsPage >= readingsPageCount - 1} onClick={() => setReadingsPage(page => page + 1)} aria-label="Next sensor reading page">
-                      Next <ArrowRight aria-hidden="true" />
+                    <Button variant="ghost" size="icon" className={`h-11 w-11 hover:bg-transparent hover:text-inherit [-webkit-tap-highlight-color:transparent] ${readingsLoading && readingsPage < readingsPageCount - 1 ? "disabled:opacity-100" : ""}`} disabled={readingsLoading || readingsPage >= readingsPageCount - 1} onClick={() => setReadingsPage(page => page + 1)} aria-label="Next sensor reading page">
+                      <ArrowRight aria-hidden="true" />
                     </Button>
                   </div>
                 </div>

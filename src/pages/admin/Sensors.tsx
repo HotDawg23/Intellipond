@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { PageHeader, EmptyState, LoadingState, LoadError } from "@/components/Common";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Database, Plus, Waves } from "lucide-react";
+import { ArrowLeft, ArrowRight, Database, Plus, Waves } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -16,31 +16,77 @@ import type { Tables } from "@/integrations/supabase/types";
 
 type ReadingWithPond = Tables<"sensor_readings"> & { pond_profiles: Pick<Tables<"pond_profiles">, "name"> | null };
 type PondOption = Pick<Tables<"pond_profiles">, "id" | "name">;
+type DateOrder = "newest" | "oldest";
+const PAGE_SIZE = 20;
 
 const Sensors = () => {
   const [readings, setReadings] = useState<ReadingWithPond[]>([]);
   const [ponds, setPonds] = useState<PondOption[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(0);
+  const [selectedDate, setSelectedDate] = useState("");
+  const [dateOrder, setDateOrder] = useState<DateOrder>("newest");
   const [hasLoaded, setHasLoaded] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ pond_id: "", do_mg_l: "", ph: "", temperature_c: "", turbidity_ntu: "" });
+  const requestId = useRef(0);
 
-  const load = async () => {
+  const load = useCallback(async () => {
+    const currentRequest = ++requestId.current;
     setLoadError("");
     try {
+      let query = supabase.from("sensor_readings").select("*, pond_profiles(name)", { count: "exact" });
+      let startIso: string | undefined;
+      let endIso: string | undefined;
+      if (selectedDate) {
+        // Match the local calendar date used when displaying each reading.
+        const start = new Date(`${selectedDate}T00:00:00`);
+        const end = new Date(start);
+        end.setDate(end.getDate() + 1);
+        startIso = start.toISOString();
+        endIso = end.toISOString();
+        query = query.gte("recorded_at", startIso).lt("recorded_at", endIso);
+      }
       const [r, p] = await Promise.all([
-        supabase.from("sensor_readings").select("*, pond_profiles(name)").order("recorded_at", { ascending: false }).limit(100),
+        query.order("recorded_at", { ascending: dateOrder === "oldest" })
+          .order("id", { ascending: dateOrder === "oldest" })
+          .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1),
         supabase.from("pond_profiles").select("id, name"),
       ]);
-      if (r.error) throw r.error;
+      if (currentRequest !== requestId.current) return;
       if (p.error) throw p.error;
-      setReadings(r.data ?? []); setPonds(p.data ?? []);
+      if (r.error) {
+        if (r.error.code === "PGRST103" && page > 0) {
+          let countQuery = supabase.from("sensor_readings").select("id", { count: "exact", head: true });
+          if (startIso && endIso) countQuery = countQuery.gte("recorded_at", startIso).lt("recorded_at", endIso);
+          const { count, error } = await countQuery;
+          if (currentRequest !== requestId.current) return;
+          if (error) throw error;
+          const lastPage = Math.max(0, Math.ceil((count ?? 0) / PAGE_SIZE) - 1);
+          if (page > lastPage) {
+            setHasLoaded(false);
+            setPage(lastPage);
+            return;
+          }
+        }
+        throw r.error;
+      }
+      const lastPage = Math.max(0, Math.ceil((r.count ?? 0) / PAGE_SIZE) - 1);
+      if (page > lastPage) {
+        setHasLoaded(false);
+        setPage(lastPage);
+        return;
+      }
+      setReadings(r.data ?? []); setTotal(r.count ?? 0); setPonds(p.data ?? []);
       setHasLoaded(true);
     } catch (error) {
+      if (currentRequest !== requestId.current) return;
       setLoadError(`Could not load sensor readings: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
-  };
+  }, [dateOrder, page, selectedDate]);
   useEffect(() => {
+    const activeRequest = requestId;
     void load();
     const readingsChannel = supabase
       .channel("admin-sensor-readings")
@@ -48,9 +94,15 @@ const Sensors = () => {
       .subscribe();
 
     return () => {
+      activeRequest.current++;
       void supabase.removeChannel(readingsChannel);
     };
-  }, []);
+  }, [load]);
+
+  const changePage = (nextPage: number) => {
+    setHasLoaded(false);
+    setPage(nextPage);
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -101,20 +153,50 @@ const Sensors = () => {
               <Waves className="h-5 w-5" aria-hidden="true" />
             </div>
             <div className="min-w-0">
-              <h2 className="font-semibold tracking-tight">Recent readings</h2>
-              <p className="mt-0.5 text-sm text-muted-foreground">Latest water quality measurements across your ponds.</p>
+              <h2 className="font-semibold tracking-tight">Sensor readings</h2>
+              <p className="mt-0.5 text-sm text-muted-foreground">Water quality measurements across your ponds.</p>
             </div>
           </div>
           <Badge variant="outline" className="w-fit border-border bg-background/80 text-muted-foreground">
-            {!hasLoaded ? "—" : readings.length === 100 ? "Latest 100" : `${readings.length} ${readings.length === 1 ? "reading" : "readings"}`}
+            {!hasLoaded ? "—" : `${total} ${total === 1 ? "reading" : "readings"}`}
           </Badge>
+        </div>
+        <div className="flex flex-col gap-3 border-b border-border/70 p-4 sm:flex-row sm:items-end sm:p-5">
+          <div className="w-full sm:w-52">
+            <Label htmlFor="reading-date" className="mb-1.5 block text-xs text-muted-foreground">Date</Label>
+            <Input id="reading-date" type="date" value={selectedDate} onChange={event => {
+              setHasLoaded(false);
+              setPage(0);
+              setSelectedDate(event.target.value);
+            }} />
+          </div>
+          <div className="w-full sm:w-44">
+            <Label htmlFor="reading-date-order" className="mb-1.5 block text-xs text-muted-foreground">Sort by date</Label>
+            <Select value={dateOrder} onValueChange={(value: DateOrder) => {
+              setHasLoaded(false);
+              setPage(0);
+              setDateOrder(value);
+            }}>
+              <SelectTrigger id="reading-date-order"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="newest">Newest first</SelectItem>
+                <SelectItem value="oldest">Oldest first</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {selectedDate && <Button variant="ghost" type="button" className="w-fit" onClick={() => {
+            setHasLoaded(false);
+            setPage(0);
+            setSelectedDate("");
+          }}>Clear date</Button>}
         </div>
         {loadError && <div className="p-4 sm:p-5"><LoadError message={loadError} onRetry={() => void load()} /></div>}
         {!hasLoaded ? (
           loadError ? null : <LoadingState label="Loading sensor readings" />
         ) : readings.length === 0 ? (
           <div className="p-4 sm:p-6">
-            <EmptyState icon={Database} title="No sensor readings available yet." description="Record a reading to start building your water quality history." />
+            <EmptyState icon={Database} title={selectedDate ? "No readings for this date." : "No sensor readings available yet."}
+              description={selectedDate ? "Choose another date or clear the date filter." : "Record a reading to start building your water quality history."} />
           </div>
         ) : (
           <>
@@ -185,6 +267,16 @@ const Sensors = () => {
                 </tbody>
               </table>
             </div>
+            {total > PAGE_SIZE && (
+              <nav aria-label="Sensor reading pages" className="flex flex-wrap items-center justify-between gap-2 border-t border-border/70 px-4 py-2 text-sm text-muted-foreground sm:px-5">
+                <span>Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, total)} of {total}</span>
+                <div className="flex items-center gap-2">
+                  <span>Page {page + 1} of {Math.ceil(total / PAGE_SIZE)}</span>
+                  <Button variant="ghost" size="icon" className="h-11 w-11 hover:bg-transparent hover:text-inherit [-webkit-tap-highlight-color:transparent]" aria-label="Previous readings page" disabled={page === 0} onClick={() => changePage(page - 1)}><ArrowLeft aria-hidden="true" /></Button>
+                  <Button variant="ghost" size="icon" className="h-11 w-11 hover:bg-transparent hover:text-inherit [-webkit-tap-highlight-color:transparent]" aria-label="Next readings page" disabled={(page + 1) * PAGE_SIZE >= total} onClick={() => changePage(page + 1)}><ArrowRight aria-hidden="true" /></Button>
+                </div>
+              </nav>
+            )}
           </>
         )}
       </Card>

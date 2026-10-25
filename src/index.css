@@ -137,6 +137,17 @@
 }
 
 @layer components {
+  .date-input::-webkit-calendar-picker-indicator {
+    position: absolute;
+    top: 50%;
+    right: 12px;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    padding: 0;
+    cursor: pointer;
+  }
   .glass-card {
     @apply bg-card/70 backdrop-blur-xl border border-border/60;
     box-shadow: var(--shadow-soft);

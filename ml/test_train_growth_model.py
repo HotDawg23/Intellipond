@@ -16,6 +16,14 @@ def row(cohort, day, weight, length):
 
 
 class GrowthModelTests(unittest.TestCase):
+    def test_missing_initial_value_keeps_prior_valid_rate_in_evaluation(self):
+        rows = [row("a", 0, None, None), row("a", 1, 1, 1),
+                row("a", 2, 2, 2), row("a", 3, 4, 4),
+                row("b", 0, 1, 1), row("b", 3, 2, 2)]
+        metric = train(rows)["validation"]["metrics"]["avg_weight_g"]
+        self.assertEqual(metric["baseline_intervals"], 1)
+        self.assertEqual(metric["recent_rate_baseline_mae"], 0)
+
     def test_duplicate_day_in_cohort_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "duplicate measurement day"):
             grouped_rows([row("pond-a", 0, 1, 1), row("pond-a", 0, 2, 2)])

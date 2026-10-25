@@ -135,18 +135,17 @@ def evaluate_long_intervals(
             model = summarize_rates(rates_by_metric[metric], excluded=cohort)
             if model is None:
                 continue
-            for index, interval in enumerate(interval_rates(measurements, metric)):
+            intervals = interval_rates(measurements, metric)
+            for index, interval in enumerate(intervals):
                 predicted = interval["start"] * math.exp(model["daily_log_growth_median"] * interval["days"])
                 model_errors.append(abs(predicted - interval["end"]))
                 unchanged_errors.append(abs(interval["start"] - interval["end"]))
                 test_intervals += 1
                 if index > 0:
-                    previous = interval_rates(measurements[: index + 2], metric)
-                    if len(previous) >= 2:
-                        recent_rate = previous[-2]["daily_log_rate"]
-                        baseline = interval["start"] * math.exp(recent_rate * interval["days"])
-                        paired_model_errors.append(abs(predicted - interval["end"]))
-                        persistence_errors.append(abs(baseline - interval["end"]))
+                    recent_rate = intervals[index - 1]["daily_log_rate"]
+                    baseline = interval["start"] * math.exp(recent_rate * interval["days"])
+                    paired_model_errors.append(abs(predicted - interval["end"]))
+                    persistence_errors.append(abs(baseline - interval["end"]))
         report["metrics"][metric] = {
             "held_out_intervals": test_intervals,
             "model_mae": round(statistics.mean(model_errors), 4) if model_errors else None,
