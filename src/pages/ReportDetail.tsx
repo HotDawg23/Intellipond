@@ -95,7 +95,7 @@ const ReportDetail = ({ admin = false }: { admin?: boolean }) => {
             </div>
           </header>
 
-          <div className={admin ? "" : "grid gap-5 lg:grid-cols-2"}>
+          <div className="grid gap-5 lg:grid-cols-2">
             <Card className="p-5 sm:p-6">
               <h2 className="text-lg font-semibold">Data coverage</h2>
               <div className="mt-3 grid gap-3 text-sm sm:grid-cols-3">
@@ -108,7 +108,7 @@ const ReportDetail = ({ admin = false }: { admin?: boolean }) => {
                 {snapshot.readings.count === 0 && " No sensor readings were recorded in this period."}
               </p>
             </Card>
-            {!admin && notesCard}
+            {notesCard}
           </div>
 
           <Card className="overflow-hidden">
@@ -165,7 +165,7 @@ const ReportDetail = ({ admin = false }: { admin?: boolean }) => {
               ) : (
                 <div className="mt-4 divide-y divide-border">
                   {snapshot.alerts.recent.map((alert, index) => (
-                    <div key={`${alert.created_at}-${index}`} className={`py-3 first:pt-0 ${!admin && (index < alertPage * REPORT_ALERT_PAGE_SIZE || index >= (alertPage + 1) * REPORT_ALERT_PAGE_SIZE) ? "hidden print:block" : ""}`}>
+                    <div key={`${alert.created_at}-${index}`} className={`py-3 first:pt-0 ${index < alertPage * REPORT_ALERT_PAGE_SIZE || index >= (alertPage + 1) * REPORT_ALERT_PAGE_SIZE ? "hidden print:block" : ""}`}>
                       <div className="flex flex-wrap items-center gap-2">
                         <Badge variant="outline">{alert.severity}</Badge>
                         <span className="text-xs text-muted-foreground">{dateTime(alert.created_at)} · {alert.status}</span>
@@ -179,7 +179,7 @@ const ReportDetail = ({ admin = false }: { admin?: boolean }) => {
                   )}
                 </div>
               )}
-              {!admin && <div className="print:hidden"><AlertPagination page={alertPage} total={snapshot.alerts.recent.length} pageSize={REPORT_ALERT_PAGE_SIZE} onPageChange={setAlertPage} /></div>}
+              <div className="print:hidden"><AlertPagination page={alertPage} total={snapshot.alerts.recent.length} pageSize={REPORT_ALERT_PAGE_SIZE} onPageChange={setAlertPage} /></div>
             </Card>
             <Card className="p-5 sm:p-6">
               <h2 className="text-lg font-semibold">Measured growth</h2>
@@ -218,7 +218,6 @@ const ReportDetail = ({ admin = false }: { admin?: boolean }) => {
             </Card>
           </div>
 
-          {admin && notesCard}
           <p className="text-xs text-muted-foreground">This report is a saved snapshot. Dates use the Asia/Manila time zone.</p>
         </article>
       )}

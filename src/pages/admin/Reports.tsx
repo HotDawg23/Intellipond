@@ -285,12 +285,12 @@ const Reports = () => {
 
       <section aria-labelledby="saved-reports-title">
         <div className="mb-3 flex items-center justify-between gap-3">
-          <div>
+          <div className="min-w-0">
             <h2 id="saved-reports-title" className="text-base font-semibold">Saved reports</h2>
             <p className="text-sm text-muted-foreground">Open a report to review or print its saved snapshot.</p>
           </div>
-          <span className="rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground">
-            {hasLoaded ? `${reports.length} ${reports.length === 1 ? "report" : "reports"}` : "—"}
+          <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground">
+            {hasLoaded ? <><span className="tabular-nums">{reports.length}</span>{" "}<span>{reports.length === 1 ? "report" : "reports"}</span></> : "—"}
           </span>
         </div>
         {loadError && <div className="mb-3"><LoadError message={loadError} onRetry={() => void load()} /></div>}

@@ -27,7 +27,7 @@ const adminNav = [
 ];
 
 const SidebarContent = ({
-  admin, items, user, role, onNavigate, onSignOut,
+  admin, items, user, role, onNavigate, onSignOut, showThemeControl = true,
 }: {
   admin: boolean;
   items: typeof userNav;
@@ -35,6 +35,7 @@ const SidebarContent = ({
   role: string | null;
   onNavigate: (to: string) => void;
   onSignOut: () => void;
+  showThemeControl?: boolean;
 }) => (
   <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
     <div className="flex items-center gap-2 border-b border-sidebar-border px-5 py-5">
@@ -45,7 +46,7 @@ const SidebarContent = ({
           <div className="text-[10px] uppercase tracking-widest text-sidebar-foreground/60">{admin ? "Admin Console" : "Operator"}</div>
         </div>
       </Link>
-      <ThemeControl iconOnly className="h-8 w-8 shrink-0 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" />
+      {showThemeControl && <ThemeControl iconOnly className="h-8 w-8 shrink-0 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" />}
     </div>
     <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
       {items.map(({ to, label, icon: Icon }) => (
@@ -111,7 +112,7 @@ export const AppShell = ({ children, admin = false }: { children: React.ReactNod
               </SheetTrigger>
               <SheetContent side="left" className="p-0 w-72 bg-sidebar border-0">
                 <SheetTitle className="sr-only">Main navigation</SheetTitle>
-                <SidebarContent admin={admin} items={items} user={user} role={role} onNavigate={handleNavigate} onSignOut={handleSignOut} />
+                <SidebarContent admin={admin} items={items} user={user} role={role} onNavigate={handleNavigate} onSignOut={handleSignOut} showThemeControl={false} />
               </SheetContent>
             </Sheet>
             <Link to="/" className="flex items-center gap-2">
@@ -120,6 +121,7 @@ export const AppShell = ({ children, admin = false }: { children: React.ReactNod
             </Link>
           </div>
           <div className="flex items-center gap-1">
+            <ThemeControl iconOnly className="text-foreground" />
             <Button size="icon" variant="ghost" onClick={handleSignOut} aria-label="Sign out"><LogOut className="h-4 w-4" /></Button>
           </div>
         </div>

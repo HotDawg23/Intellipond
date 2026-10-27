@@ -128,7 +128,7 @@ const Users = () => {
                 <span className="inline-flex items-center gap-2">
                   {SelectedIcon && <SelectedIcon className="h-4 w-4" aria-hidden="true" />}
                   {selectedFilter?.label}
-                  <span className="text-sm font-medium tabular-nums">({hasLoaded ? groups[activeGroup].length : "—"})</span>
+                  <span className="text-sm font-semibold tabular-nums">({hasLoaded ? groups[activeGroup].length : "—"})</span>
                 </span>
               </SelectValue>
             </SelectTrigger>
@@ -138,7 +138,7 @@ const Users = () => {
                   <span className="inline-flex items-center gap-2">
                     {Icon && <Icon className="h-4 w-4" aria-hidden="true" />}
                     <span>{label}</span>
-                    <span className="text-sm font-medium tabular-nums text-muted-foreground">
+                    <span className="text-sm font-semibold tabular-nums text-inherit">
                       ({hasLoaded ? groups[key].length : "—"})
                     </span>
                   </span>

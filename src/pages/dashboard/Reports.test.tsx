@@ -60,6 +60,26 @@ const sharedReport: Report = {
   },
 };
 
+const reportWithAlerts = (): Report => ({
+  ...sharedReport,
+  report_data: {
+    ...(sharedReport.report_data as object),
+    alerts: {
+      count: 3,
+      critical: 1,
+      warning: 2,
+      active: 1,
+      recent: [1, 2, 3].map(number => ({
+        severity: number === 1 ? "critical" : "warning",
+        message: `Alert ${number}`,
+        status: "active",
+        created_at: `2026-10-2${number}T10:00:00Z`,
+        recommendation: null,
+      })),
+    },
+  },
+} as Report);
+
 describe("Operator reports", () => {
   beforeEach(() => { state.visibleReport = sharedReport; });
 
@@ -86,25 +106,7 @@ describe("Operator reports", () => {
   });
 
   it("pages two alerts on screen while keeping every saved alert available for print", async () => {
-    state.visibleReport = {
-      ...sharedReport,
-      report_data: {
-        ...(sharedReport.report_data as object),
-        alerts: {
-          count: 3,
-          critical: 1,
-          warning: 2,
-          active: 1,
-          recent: [1, 2, 3].map(number => ({
-            severity: number === 1 ? "critical" : "warning",
-            message: `Alert ${number}`,
-            status: "active",
-            created_at: `2026-10-2${number}T10:00:00Z`,
-            recommendation: null,
-          })),
-        },
-      },
-    } as Report;
+    state.visibleReport = reportWithAlerts();
 
     render(
       <MemoryRouter initialEntries={["/dashboard/reports/report-1"]}>
@@ -120,6 +122,23 @@ describe("Operator reports", () => {
     expect(screen.getByText("Alert 1").parentElement).toHaveClass("hidden", "print:block");
     expect(screen.getByText("Alert 3").parentElement).not.toHaveClass("hidden");
     expect(screen.getByText("Showing 3–3 of 3")).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Data coverage" }).parentElement?.parentElement).toContainElement(
+      screen.getByRole("heading", { name: "Notes and actions" }),
+    );
+  });
+
+  it("uses the same coverage and alert layout for admins", async () => {
+    state.visibleReport = reportWithAlerts();
+    render(
+      <MemoryRouter initialEntries={["/admin/reports/report-1"]}>
+        <Routes><Route path="/admin/reports/:id" element={<ReportDetail admin />} /></Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText("Alert 1")).toBeVisible();
+    expect(screen.getByText("Alert 3").parentElement).toHaveClass("hidden", "print:block");
+    fireEvent.click(screen.getByRole("button", { name: "Next alert page" }));
+    expect(screen.getByText("Alert 3").parentElement).not.toHaveClass("hidden");
     expect(screen.getByRole("heading", { name: "Data coverage" }).parentElement?.parentElement).toContainElement(
       screen.getByRole("heading", { name: "Notes and actions" }),
     );
