@@ -364,32 +364,88 @@ export type Database = {
         }
         Relationships: []
       }
+      report_recipients: {
+        Row: {
+          report_id: string
+          user_id: string
+        }
+        Insert: {
+          report_id: string
+          user_id: string
+        }
+        Update: {
+          report_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "report_recipients_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reports: {
         Row: {
           created_at: string
           description: string | null
           file_path: string | null
+          fish_batch_id: string | null
           generated_by: string | null
           id: string
+          period_end: string | null
+          period_start: string | null
+          pond_id: string | null
+          published_at: string | null
+          report_data: Json | null
           title: string
         }
         Insert: {
           created_at?: string
           description?: string | null
           file_path?: string | null
+          fish_batch_id?: string | null
           generated_by?: string | null
           id?: string
+          period_end?: string | null
+          period_start?: string | null
+          pond_id?: string | null
+          published_at?: string | null
+          report_data?: Json | null
           title: string
         }
         Update: {
           created_at?: string
           description?: string | null
           file_path?: string | null
+          fish_batch_id?: string | null
           generated_by?: string | null
           id?: string
+          period_end?: string | null
+          period_start?: string | null
+          pond_id?: string | null
+          published_at?: string | null
+          report_data?: Json | null
           title?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "reports_batch_pond_fkey"
+            columns: ["fish_batch_id", "pond_id"]
+            isOneToOne: false
+            referencedRelation: "fish_batches"
+            referencedColumns: ["id", "pond_id"]
+          },
+          {
+            foreignKeyName: "reports_pond_id_fkey"
+            columns: ["pond_id"]
+            isOneToOne: false
+            referencedRelation: "pond_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sensor_readings: {
         Row: {
@@ -565,12 +621,31 @@ export type Database = {
           retry_after_seconds: number
         }[]
       }
+      create_pond_report: {
+        Args: {
+          p_batch_id: string | null
+          p_description: string
+          p_operator_ids: string[]
+          p_period_end: string
+          p_period_start: string
+          p_pond_id: string
+          p_title: string
+        }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
         Returns: boolean
+      }
+      set_report_recipients: {
+        Args: {
+          p_operator_ids: string[]
+          p_report_id: string
+        }
+        Returns: undefined
       }
     }
     Enums: {

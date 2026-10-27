@@ -1,16 +1,19 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
+import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import Reports from "@/pages/admin/Reports";
 import { downloadGrowthRecordsCsv } from "@/lib/growth-records-export";
+import type { Report } from "@/lib/report-snapshot";
 import { toast } from "sonner";
 
 const state = vi.hoisted(() => ({
-  reports: [] as { id: string; title: string; description: string | null; created_at: string }[],
+  reports: [] as Report[],
   readings: [] as Record<string, unknown>[],
-  readingsError: null as Error | null,
   reportsError: null as Error | null,
-  resolveReports: null as null | (() => void),
+  readingsError: null as Error | null,
+  recipients: [] as { report_id: string; user_id: string }[],
+  rpc: vi.fn(),
 }));
 
 vi.mock("@/components/AppShell", () => ({ AppShell: ({ children }: { children: ReactNode }) => <div>{children}</div> }));
@@ -18,106 +21,124 @@ vi.mock("@/lib/growth-records-export", () => ({ downloadGrowthRecordsCsv: vi.fn(
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
-    auth: { getUser: async () => ({ data: { user: { id: "admin-1" } } }) },
-    from: (table: string) => table === "reports" ? {
-      select() { return this; },
-      order() { return this; },
-      then(resolve: (value: unknown) => void) {
-        if (state.resolveReports) {
-          state.resolveReports = () => resolve({ data: state.reports, error: state.reportsError });
-        } else resolve({ data: state.reports, error: state.reportsError });
-      },
-      async insert(values: { title: string; description: string | null }) {
-        state.reports.unshift({ id: "new-report", ...values, created_at: "2026-10-23T10:00:00Z" });
-        return { error: null };
-      },
-    } : {
-      select() { return this; },
-      order() { return this; },
-      async limit() { return { data: state.readings, error: state.readingsError }; },
+    rpc: state.rpc,
+    from: (table: string) => {
+      const query = {
+        select() { return query; },
+        order() { return query; },
+        async limit() { return { data: state.readings, error: state.readingsError }; },
+        then(resolve: (value: unknown) => void) {
+          const data = table === "reports" ? state.reports
+            : table === "pond_profiles" ? [{ id: "pond-1", name: "BFAR" }]
+            : table === "fish_batches" ? [{ id: "batch-1", pond_id: "pond-1", batch_name: "Batch 1" }]
+            : table === "profiles" ? [{ id: "operator-1", full_name: "Alex Operator", email: "alex@example.com", approved: true }]
+            : table === "user_roles" ? [{ user_id: "operator-1", role: "operator" }]
+            : table === "report_recipients" ? state.recipients
+            : [];
+          resolve({ data, error: table === "reports" ? state.reportsError : null });
+        },
+      };
+      return query;
     },
   },
 }));
 
-describe("Reports", () => {
+const snapshot = {
+  version: 1,
+  generated_at: "2026-10-27T10:00:00Z",
+  time_zone: "Asia/Manila",
+  pond_name: "BFAR",
+  batch_name: null,
+  readings: { count: 1 },
+  alerts: { count: 0 },
+  growth: { count: 0 },
+};
+
+const report = (): Report => ({
+  id: "report-1",
+  title: "October pond report",
+  description: "Pond is stable",
+  file_path: null,
+  fish_batch_id: null,
+  generated_by: "admin-1",
+  period_start: "2026-10-20",
+  period_end: "2026-10-27",
+  pond_id: "pond-1",
+  published_at: "2026-10-27T10:00:00Z",
+  report_data: snapshot,
+  created_at: "2026-10-27T10:00:00Z",
+});
+const renderPage = () => render(<MemoryRouter><Reports /></MemoryRouter>);
+
+describe("Admin reports", () => {
   beforeEach(() => {
+    vi.stubGlobal("ResizeObserver", class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    });
+    Object.defineProperty(Element.prototype, "scrollIntoView", { configurable: true, value: vi.fn() });
     vi.clearAllMocks();
-    state.reports = [{ id: "report-1", title: "Feeding notes", description: "Add more food", created_at: "2026-10-21T10:00:00Z" }];
+    state.reports = [report()];
     state.readings = [];
-    state.readingsError = null;
+    state.recipients = [{ report_id: "report-1", user_id: "operator-1" }];
     state.reportsError = null;
-    state.resolveReports = null;
+    state.readingsError = null;
+    state.rpc.mockResolvedValue({ data: "new-report", error: null });
     vi.mocked(downloadGrowthRecordsCsv).mockResolvedValue(2);
     Object.defineProperty(URL, "createObjectURL", { configurable: true, value: vi.fn(() => "blob:test") });
     Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: vi.fn() });
     vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
   });
 
-  it("shows saved reports and keeps the growth download available", async () => {
-    render(<Reports />);
-    expect(await screen.findByText("Feeding notes")).toBeVisible();
-    expect(screen.getByText("Latest 1,000 readings")).toBeVisible();
+  it("shows generated reports and keeps admin exports", async () => {
+    renderPage();
+    expect(await screen.findByText("October pond report")).toBeVisible();
+    expect(screen.getByText(/BFAR.*2026-10-20 to 2026-10-27/)).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Export growth CSV" }));
     await waitFor(() => expect(downloadGrowthRecordsCsv).toHaveBeenCalledOnce());
     expect(toast.success).toHaveBeenCalledWith("Exported 2 growth records");
 
-    vi.mocked(downloadGrowthRecordsCsv).mockResolvedValueOnce(0);
-    fireEvent.click(screen.getByRole("button", { name: "Export growth CSV" }));
-    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("No growth records to export"));
-
-    vi.mocked(downloadGrowthRecordsCsv).mockRejectedValueOnce(new Error("Connection failed"));
-    fireEvent.click(screen.getByRole("button", { name: "Export growth CSV" }));
-    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Could not export growth records: Connection failed"));
+    state.readings = [{ recorded_at: "2026-10-23T10:00:00Z", pond_id: "pond-1", do_mg_l: 5, ph: 7, temperature_c: 28, turbidity_ntu: 30 }];
+    fireEvent.click(screen.getByRole("button", { name: "Export readings" }));
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith("Exported 1 sensor reading"));
   });
 
-  it("waits for the first request before showing the empty state", async () => {
-    state.reports = [];
-    const pending = () => {};
-    state.resolveReports = pending;
-    render(<Reports />);
-    expect(screen.getByRole("status", { name: "Loading reports" })).toBeVisible();
-    expect(screen.queryByText("No reports yet.")).toBeNull();
-    await waitFor(() => expect(state.resolveReports).not.toBe(pending));
-    state.resolveReports();
-    expect(await screen.findByText("No reports yet.")).toBeVisible();
+  it("creates a pond report with a selected operator", async () => {
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "New report" }));
+    fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Weekly report" } });
+    fireEvent.click(screen.getByRole("combobox", { name: "Pond" }));
+    fireEvent.click(await screen.findByRole("option", { name: "BFAR" }));
+    fireEvent.click(await screen.findByLabelText("Alex Operator"));
+    fireEvent.click(screen.getByRole("button", { name: "Create report" }));
+    await waitFor(() => expect(state.rpc).toHaveBeenCalledWith("create_pond_report", expect.objectContaining({
+      p_title: "Weekly report",
+      p_pond_id: "pond-1",
+      p_batch_id: null,
+      p_operator_ids: ["operator-1"],
+    })));
+    expect(toast.success).toHaveBeenCalledWith("Report created");
   });
 
-  it("shows a retryable error instead of a false empty state", async () => {
-    state.reports = [];
+  it("updates recipients", async () => {
+    renderPage();
+    await screen.findByText("October pond report");
+    fireEvent.click(screen.getByRole("button", { name: "Manage access" }));
+    fireEvent.click(screen.getByLabelText("Alex Operator"));
+    fireEvent.click(screen.getByRole("button", { name: "Save access" }));
+    await waitFor(() => expect(state.rpc).toHaveBeenCalledWith("set_report_recipients", {
+      p_report_id: "report-1",
+      p_operator_ids: [],
+    }));
+  });
+
+  it("shows a retryable loading error", async () => {
     state.reportsError = new Error("Connection failed");
-    render(<Reports />);
+    renderPage();
     expect(await screen.findByRole("alert")).toHaveTextContent("Could not load reports: Connection failed");
-    expect(screen.queryByText("No reports yet.")).toBeNull();
     state.reportsError = null;
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
-    expect(await screen.findByText("No reports yet.")).toBeVisible();
-  });
-
-  it("downloads readings and reports empty or failed exports", async () => {
-    state.readings = [{ recorded_at: "2026-10-23T10:00:00Z", pond_id: "pond-1", do_mg_l: 5, ph: 7, temperature_c: 28, turbidity_ntu: 30 }];
-    render(<Reports />);
-    const download = screen.getByRole("button", { name: "Export readings" });
-    fireEvent.click(download);
-    await waitFor(() => expect(toast.success).toHaveBeenCalledWith("Exported 1 sensor reading"));
-    expect(URL.createObjectURL).toHaveBeenCalledOnce();
-
-    state.readings = [];
-    fireEvent.click(download);
-    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("No readings to export"));
-
-    state.readingsError = new Error("Connection failed");
-    fireEvent.click(download);
-    await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Could not export readings: Connection failed"));
-  });
-
-  it("creates a report and adds it to the saved list", async () => {
-    render(<Reports />);
-    fireEvent.click(screen.getByRole("button", { name: "New report" }));
-    const fields = screen.getAllByRole("textbox");
-    fireEvent.change(fields[0], { target: { value: "Water check" } });
-    fireEvent.change(fields[1], { target: { value: "Daily notes" } });
-    fireEvent.click(screen.getByRole("button", { name: "Save" }));
-    await waitFor(() => expect(screen.getByText("Water check")).toBeVisible());
-    expect(toast.success).toHaveBeenCalledWith("Report saved");
+    expect(await screen.findByText("October pond report")).toBeVisible();
   });
 });

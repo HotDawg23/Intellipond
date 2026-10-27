@@ -323,14 +323,13 @@ const Index = () => {
             <p className="mt-5 sm:mt-6 text-base sm:text-lg text-white/90 max-w-xl">
               Monitor water quality, fish growth, and pond conditions in real time with live IoT sensor data.
             </p>
-            <div className="mt-8 sm:mt-10 flex flex-col sm:flex-row flex-wrap gap-3">
-              <Link to={user ? "/dashboard" : "/auth"} onClick={handleGetStarted} className="w-full sm:w-auto">
+            <div className="mt-8 sm:mt-10">
+              <Link to={user ? "/dashboard" : "/auth"} onClick={handleGetStarted} className="inline-flex w-full sm:w-auto">
                 <Button size="lg" disabled={isStartingSignIn} aria-busy={isStartingSignIn} className="w-full sm:w-auto bg-white text-primary hover:bg-white/90 dark:text-slate-900 h-12 px-6 hover-scale">
                   {isStartingSignIn ? "Preparing sign in" : user ? "Go to dashboard" : "Get started"}
                   {isStartingSignIn ? <LoaderCircle aria-hidden="true" className="ml-2 h-4 w-4 animate-spin" /> : <ArrowRight className="ml-2 h-4 w-4" />}
                 </Button>
               </Link>
-              <a href="#features" onClick={(event) => scrollToSection(event, "features")} className="w-full sm:w-auto"><Button size="lg" variant="outline" className="w-full sm:w-auto border-white/30 text-white hover:bg-white/10 hover:text-white h-12 px-6 bg-transparent">Explore the platform</Button></a>
             </div>
           </FadeContent>
           <div className="lg:col-span-5 w-full">

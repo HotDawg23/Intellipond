@@ -18,6 +18,8 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 const Dashboard = lazy(() => import("./pages/dashboard/Dashboard"));
 const Growth = lazy(() => import("./pages/dashboard/Growth"));
 const Alerts = lazy(() => import("./pages/dashboard/Alerts"));
+const OperatorReports = lazy(() => import("./pages/dashboard/Reports"));
+const ReportDetail = lazy(() => import("./pages/ReportDetail"));
 const AdminOverview = lazy(() => import("./pages/admin/AdminOverview"));
 const Sensors = lazy(() => import("./pages/admin/Sensors"));
 const Ponds = lazy(() => import("./pages/admin/Ponds"));
@@ -58,6 +60,8 @@ const App = () => (
                 <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                 <Route path="/dashboard/growth" element={<ProtectedRoute><Growth /></ProtectedRoute>} />
                 <Route path="/dashboard/alerts" element={<ProtectedRoute><Alerts /></ProtectedRoute>} />
+                <Route path="/dashboard/reports" element={<ProtectedRoute><OperatorReports /></ProtectedRoute>} />
+                <Route path="/dashboard/reports/:id" element={<ProtectedRoute><ReportDetail /></ProtectedRoute>} />
 
                 <Route path="/admin" element={<ProtectedRoute adminOnly><AdminOverview /></ProtectedRoute>} />
                 <Route path="/admin/sensors" element={<ProtectedRoute adminOnly><Sensors /></ProtectedRoute>} />
@@ -66,6 +70,7 @@ const App = () => (
                 <Route path="/admin/alerts" element={<ProtectedRoute adminOnly><AlertHistory /></ProtectedRoute>} />
                 <Route path="/admin/users" element={<ProtectedRoute adminOnly><Users /></ProtectedRoute>} />
                 <Route path="/admin/reports" element={<ProtectedRoute adminOnly><Reports /></ProtectedRoute>} />
+                <Route path="/admin/reports/:id" element={<ProtectedRoute adminOnly><ReportDetail admin /></ProtectedRoute>} />
                 <Route path="/admin/settings" element={<ProtectedRoute adminOnly><Settings /></ProtectedRoute>} />
 
                 <Route path="*" element={<NotFound />} />

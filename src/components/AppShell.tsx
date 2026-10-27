@@ -12,6 +12,7 @@ const userNav = [
   { to: "/dashboard", label: "Overview", icon: LayoutDashboard },
   { to: "/dashboard/growth", label: "Growth", icon: Fish },
   { to: "/dashboard/alerts", label: "Alerts", icon: Bell },
+  { to: "/dashboard/reports", label: "Reports", icon: FileText },
 ];
 
 const adminNav = [
@@ -26,7 +27,7 @@ const adminNav = [
 ];
 
 const SidebarContent = ({
-  admin, items, user, role, onNavigate, onSignOut, showThemeControl = true,
+  admin, items, user, role, onNavigate, onSignOut,
 }: {
   admin: boolean;
   items: typeof userNav;
@@ -34,19 +35,21 @@ const SidebarContent = ({
   role: string | null;
   onNavigate: (to: string) => void;
   onSignOut: () => void;
-  showThemeControl?: boolean;
 }) => (
   <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
-    <Link to="/" className="px-6 py-6 flex items-center gap-2 border-b border-sidebar-border" onClick={() => onNavigate("/")}>
-      <BrandMark className="h-9 w-9 rounded-xl shadow-glow" />
-      <div>
-        <div className="font-semibold tracking-tight text-sidebar-primary-foreground">IntelliPond</div>
-        <div className="text-[10px] uppercase tracking-widest text-sidebar-foreground/60">{admin ? "Admin Console" : "Operator"}</div>
-      </div>
-    </Link>
+    <div className="flex items-center gap-2 border-b border-sidebar-border px-5 py-5">
+      <Link to="/" className="flex min-w-0 flex-1 items-center gap-2" onClick={() => onNavigate("/")}>
+        <BrandMark className="h-9 w-9 shrink-0 rounded-xl shadow-glow" />
+        <div className="min-w-0">
+          <div className="font-semibold tracking-tight text-sidebar-primary-foreground">IntelliPond</div>
+          <div className="text-[10px] uppercase tracking-widest text-sidebar-foreground/60">{admin ? "Admin Console" : "Operator"}</div>
+        </div>
+      </Link>
+      <ThemeControl iconOnly className="h-8 w-8 shrink-0 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" />
+    </div>
     <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
       {items.map(({ to, label, icon: Icon }) => (
-        <NavLink key={to} to={to} end
+        <NavLink key={to} to={to} end={to === "/dashboard" || to === "/admin"}
           onClick={() => onNavigate(to)}
           className={({ isActive }) => cn(
             "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all",
@@ -67,7 +70,6 @@ const SidebarContent = ({
           <LayoutDashboard className="h-4 w-4 mr-2" /> Operator View
         </Button>
       )}
-      {showThemeControl && <ThemeControl className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" />}
       <div className="px-2 py-1.5 text-xs text-sidebar-foreground/60 truncate">{user?.email}</div>
       <Button variant="ghost" className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent" onClick={onSignOut}>
         <LogOut className="h-4 w-4 mr-2" /> Sign out
@@ -109,7 +111,7 @@ export const AppShell = ({ children, admin = false }: { children: React.ReactNod
               </SheetTrigger>
               <SheetContent side="left" className="p-0 w-72 bg-sidebar border-0">
                 <SheetTitle className="sr-only">Main navigation</SheetTitle>
-                <SidebarContent admin={admin} items={items} user={user} role={role} onNavigate={handleNavigate} onSignOut={handleSignOut} showThemeControl={false} />
+                <SidebarContent admin={admin} items={items} user={user} role={role} onNavigate={handleNavigate} onSignOut={handleSignOut} />
               </SheetContent>
             </Sheet>
             <Link to="/" className="flex items-center gap-2">
@@ -118,7 +120,6 @@ export const AppShell = ({ children, admin = false }: { children: React.ReactNod
             </Link>
           </div>
           <div className="flex items-center gap-1">
-            <ThemeControl iconOnly className="text-foreground" />
             <Button size="icon" variant="ghost" onClick={handleSignOut} aria-label="Sign out"><LogOut className="h-4 w-4" /></Button>
           </div>
         </div>
