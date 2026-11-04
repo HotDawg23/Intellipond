@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Bell } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
+import { AnimatedResults } from "@/components/AnimatedResults";
 import AlertIncidentCard from "@/components/AlertIncidentCard";
 import AlertListFilters from "@/components/AlertListFilters";
 import AlertPagination from "@/components/AlertPagination";
@@ -30,6 +31,7 @@ const Alerts = () => {
     await history.load();
     toast.success("Alert acknowledged");
   };
+  const resultsKey = history.loading ? "loading" : history.error ? "error" : `loaded:${history.alerts.map(alert => alert.id).join("|")}`;
 
   return (
     <AppShell>
@@ -41,7 +43,7 @@ const Alerts = () => {
             dateRange={history.dateRange} onDateRangeChange={history.changeDateRange}
             status={history.status} onStatusChange={history.changeStatus} />
         </div>
-        <div className="border-t border-border/70">
+        <AnimatedResults transitionKey={resultsKey} className="border-t border-border/70" resize={false} slide={false}>
           {history.loading ? (
             <p className="p-6 text-sm text-muted-foreground" role="status">Loading alerts...</p>
           ) : history.error ? (
@@ -80,7 +82,7 @@ const Alerts = () => {
               )}
             </section>
           )}
-        </div>
+        </AnimatedResults>
       </Card>
     </AppShell>
   );

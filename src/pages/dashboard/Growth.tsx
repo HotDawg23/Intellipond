@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
 import { ArrowUpRight, Fish, Ruler, Weight } from "lucide-react";
 import { Line, LineChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { AppShell } from "@/components/AppShell";
+import { AnimatedResults } from "@/components/AnimatedResults";
 import { EmptyState, PageHeader } from "@/components/Common";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -37,6 +39,45 @@ type GrowthRecord = GrowthObservation & {
 };
 
 const formatDate = (date: string) => format(new Date(`${date.slice(0, 10)}T00:00:00`), "MMM d, yyyy");
+const historicalSuffix = /\s*\(historical\)\s*$/i;
+const pondName = (batch: FishBatch) => (batch.pond_profiles?.name ?? "Pond").replace(historicalSuffix, "");
+const isHistorical = (batch: FishBatch) => historicalSuffix.test(batch.pond_profiles?.name ?? "");
+
+function BatchStatusPills({ batch }: { batch: FishBatch }) {
+  return <span className="inline-flex shrink-0 flex-wrap items-center gap-1.5">
+    <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium leading-none ${batch.is_active
+      ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200"
+      : "bg-muted text-muted-foreground"}`}>{batch.is_active ? "Active" : "Closed"}</span>
+    {isHistorical(batch) && <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium leading-none text-primary group-data-[highlighted]:bg-white group-data-[highlighted]:text-teal-900">Historical</span>}
+  </span>;
+}
+
+function BatchOptionTitle({ title }: { title: string }) {
+  const viewportRef = useRef<HTMLSpanElement>(null);
+  const [overflow, setOverflow] = useState(0);
+
+  useLayoutEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    const measureOverflow = () => setOverflow(Math.max(0, viewport.scrollWidth - viewport.clientWidth));
+    measureOverflow();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measureOverflow);
+    observer.observe(viewport);
+    return () => observer.disconnect();
+  }, [title]);
+
+  return (
+    <span ref={viewportRef} className="batch-title-viewport min-w-0 flex-1 overflow-hidden whitespace-nowrap max-sm:whitespace-normal">
+      <span
+        className={`batch-title-text inline-block whitespace-nowrap max-sm:break-words max-sm:whitespace-normal ${overflow > 0 ? "batch-title-text--overflow" : ""}`}
+        style={{ "--batch-title-overflow": `${overflow}px` } as CSSProperties}
+      >
+        {title}
+      </span>
+    </span>
+  );
+}
 
 const Growth = () => {
   const { role } = useAuth();
@@ -106,13 +147,27 @@ const Growth = () => {
           <section aria-labelledby="batch-heading" className="flex flex-wrap items-end justify-between gap-4">
             <div><h2 id="batch-heading" className="text-xl font-semibold">{selectedBatch.is_active ? "Current batch" : "Historical batch"}</h2><p className="mt-1 text-sm text-muted-foreground">Choose a batch to see its measurements. Current batches also show an estimate.</p></div>
             <div className="w-full sm:w-72">
-              <label htmlFor="growth-batch" className="mb-1 block text-sm font-medium">Fish batch</label>
+              <div className="mb-1 flex items-center justify-between gap-2">
+                <label htmlFor="growth-batch" className="block text-sm font-medium">Fish batch</label>
+                <BatchStatusPills batch={selectedBatch} />
+              </div>
               <Select value={selectedBatch.id} onValueChange={setSelectedBatchId}>
-                <SelectTrigger id="growth-batch"><SelectValue /></SelectTrigger>
-                <SelectContent>{batches.map(batch => <SelectItem key={batch.id} value={batch.id}>{batch.batch_name} · {batch.pond_profiles?.name ?? "Pond"}{batch.is_active ? "" : " (Closed)"}</SelectItem>)}</SelectContent>
+                <SelectTrigger id="growth-batch" className="min-w-0"><SelectValue>{selectedBatch.batch_name} · {pondName(selectedBatch)}</SelectValue></SelectTrigger>
+                <SelectContent className="w-[22rem] max-w-[calc(100vw-2rem)] max-sm:w-[var(--radix-select-trigger-width)]">
+                  {batches.map(batch => <SelectItem key={batch.id} value={batch.id}
+                    textValue={`${batch.batch_name} ${pondName(batch)} ${batch.is_active ? "Active" : "Closed"}${isHistorical(batch) ? " Historical" : ""}`}
+                    className="batch-option group [&>span:last-child]:min-w-0 [&>span:last-child]:flex-1 max-sm:whitespace-normal">
+                    <span className="flex min-w-0 items-center gap-x-2 max-sm:flex-wrap max-sm:gap-y-1">
+                      <BatchOptionTitle title={`${batch.batch_name} · ${pondName(batch)}`} />
+                      <BatchStatusPills batch={batch} />
+                    </span>
+                  </SelectItem>)}
+                </SelectContent>
               </Select>
             </div>
           </section>
+          <AnimatedResults transitionKey={selectedBatch.id}>
+          <div className="space-y-5">
           {selectedBatch.is_active ? <Card className="overflow-hidden p-5 sm:p-6">
             <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border pb-4">
               <div>
@@ -138,7 +193,7 @@ const Growth = () => {
               </div>
             </details>
           </Card> : <Card className="p-5 sm:p-6">
-            <Badge variant="secondary">Closed batch</Badge>
+            <BatchStatusPills batch={selectedBatch} />
             <h3 className="mt-3 text-xl font-semibold">{selectedBatch.batch_name}</h3>
             <p className="mt-1 text-sm text-muted-foreground">{selectedBatch.pond_profiles?.name ?? "Pond"} · stocked {formatDate(selectedBatch.stocking_date)}. These are historical measurements; this batch has no current growth estimate.</p>
           </Card>}
@@ -151,6 +206,8 @@ const Growth = () => {
               </div>
             )}
           </section>
+          </div>
+          </AnimatedResults>
         </div>
       )}
     </AppShell>

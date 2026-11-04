@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, FileText, Printer } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
+import { AnimatedResults } from "@/components/AnimatedResults";
 import AlertPagination from "@/components/AlertPagination";
 import { EmptyState, LoadError, LoadingState } from "@/components/Common";
 import { Badge } from "@/components/ui/badge";
@@ -163,7 +164,8 @@ const ReportDetail = ({ admin = false }: { admin?: boolean }) => {
               {snapshot.alerts.recent.length === 0 ? (
                 <p className="mt-5 text-sm text-muted-foreground">No alerts were raised in this period.</p>
               ) : (
-                <div className="mt-4 divide-y divide-border">
+                <AnimatedResults transitionKey={`alerts-page-${alertPage}`} resize={false} slide={false} skipWhenPrinting className="mt-4">
+                <div className="divide-y divide-border">
                   {snapshot.alerts.recent.map((alert, index) => (
                     <div key={`${alert.created_at}-${index}`} className={`py-3 first:pt-0 ${index < alertPage * REPORT_ALERT_PAGE_SIZE || index >= (alertPage + 1) * REPORT_ALERT_PAGE_SIZE ? "hidden print:block" : ""}`}>
                       <div className="flex flex-wrap items-center gap-2">
@@ -178,6 +180,7 @@ const ReportDetail = ({ admin = false }: { admin?: boolean }) => {
                     <p className="pt-3 text-xs text-muted-foreground">Showing the latest {snapshot.alerts.recent.length} alerts.</p>
                   )}
                 </div>
+                </AnimatedResults>
               )}
               <div className="print:hidden"><AlertPagination page={alertPage} total={snapshot.alerts.recent.length} pageSize={REPORT_ALERT_PAGE_SIZE} onPageChange={setAlertPage} /></div>
             </Card>

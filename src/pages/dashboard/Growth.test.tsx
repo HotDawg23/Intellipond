@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import Growth from "@/pages/dashboard/Growth";
@@ -69,6 +69,7 @@ describe("Growth Monitoring", () => {
     expect(screen.getByText(/Reference range:/)).toBeVisible();
     expect(screen.getByText(/Add a starting or sampled average length/)).toBeVisible();
     expect(screen.getByText("Research estimate")).toBeVisible();
+    expect(screen.getByText("Active")).toBeVisible();
   });
 
   it("shows only the selected batch and asks for new measurements when its samples are stale", async () => {
@@ -96,14 +97,19 @@ describe("Growth Monitoring", () => {
   it("shows historical BFAR measurements without presenting a current estimate", async () => {
     state.data = {
       bangus_growth_records: [{ id: "sample", fish_batch_id: "historical", pond_id: "pond-1", recorded_at: "2025-10-17T00:00:00Z", avg_weight_g: 0.23, avg_length_cm: 2.888 }],
-      fish_batches: [{ id: "historical", pond_id: "pond-1", batch_name: "BFAR Pond 1 Second Cycle 2025", stocking_date: "2025-10-01", stocked_fish_count: null, initial_weight_g: null, initial_length_cm: null, is_active: false, pond_profiles: { name: "BFAR 2025 Pond 1", area_sqm: null } }],
+      fish_batches: [{ id: "historical", pond_id: "pond-1", batch_name: "BFAR Pond 1 Second Cycle 2025", stocking_date: "2025-10-01", stocked_fish_count: null, initial_weight_g: null, initial_length_cm: null, is_active: false, pond_profiles: { name: "BFAR 2025 Pond 1 (historical)", area_sqm: null } }],
     };
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => model }));
 
     render(<Growth />);
     expect(await screen.findByRole("heading", { name: "Historical batch" })).toBeVisible();
-    expect(screen.getByText("Closed batch")).toBeVisible();
+    expect(screen.getAllByText("Closed")).toHaveLength(2);
+    expect(screen.getAllByText("Historical")).toHaveLength(2);
     expect(screen.getAllByTestId("growth-chart")[0]).toHaveTextContent("0.23");
     expect(screen.queryByRole("heading", { name: "7-day growth estimate" })).not.toBeInTheDocument();
+
+    Object.defineProperty(Element.prototype, "scrollIntoView", { configurable: true, value: vi.fn() });
+    fireEvent.click(screen.getByRole("combobox", { name: "Fish batch" }));
+    expect(await screen.findByRole("option", { name: /BFAR Pond 1 Second Cycle 2025.*Closed Historical/ })).toBeVisible();
   });
 });

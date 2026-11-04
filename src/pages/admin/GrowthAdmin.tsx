@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { format } from "date-fns";
 import { Archive, ChevronDown, Fish, Plus } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
+import { AnimatedResults } from "@/components/AnimatedResults";
 import { EmptyState, PageHeader, LoadingState, LoadError } from "@/components/Common";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,7 @@ type FishBatch = {
   pond_profiles?: { name: string; area_sqm: number | null } | null;
 };
 type GrowthRecord = GrowthWaterAveragesRecord;
+type BatchFilter = "active" | "closed" | "all";
 
 const localDate = () => {
   const now = new Date();
@@ -63,9 +65,16 @@ const GrowthAdmin = () => {
   const [editingBatch, setEditingBatch] = useState<FishBatch | null>(null);
   const [stockedFishCountInput, setStockedFishCountInput] = useState("");
   const [historyBatchId, setHistoryBatchId] = useState("all");
+  const [batchFilter, setBatchFilter] = useState<BatchFilter>("active");
   const [batchForm, setBatchForm] = useState({ pond_id: "", batch_name: "", stocking_date: localDate(), stocked_fish_count: "", initial_weight_g: "", initial_length_cm: "" });
   const [recordForm, setRecordForm] = useState({ fish_batch_id: "", recorded_at: localDate(), avg_weight_g: "", avg_length_cm: "", feeding_notes: "", pond_condition: "", growth_status: "" });
   const activeBatches = batches.filter(batch => batch.is_active);
+  const closedBatchCount = batches.length - activeBatches.length;
+  const visibleBatches = batches
+    .filter(batch => batchFilter === "all" || (batchFilter === "active" ? batch.is_active : !batch.is_active))
+    .sort((a, b) => Number(b.is_active) - Number(a.is_active)
+      || b.stocking_date.localeCompare(a.stocking_date)
+      || a.id.localeCompare(b.id));
   const visibleRecords = historyBatchId === "all" ? records : records.filter(record => record.fish_batch_id === historyBatchId);
   const selectedPond = ponds.find(pond => pond.id === batchForm.pond_id);
   const newBatchDensity = formatStockingDensity(
@@ -345,15 +354,31 @@ const GrowthAdmin = () => {
         loadError ? null : <Card><LoadingState label="Loading growth records" /></Card>
       ) : <>
       <section className="mb-6 space-y-3" aria-labelledby="batches-heading">
-        <div>
-          <h2 id="batches-heading" className="text-lg font-semibold">Fish batches</h2>
-          <p className="text-sm text-muted-foreground">Stocking details and the latest recorded measurements.</p>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 id="batches-heading" className="text-lg font-semibold">Fish batches</h2>
+            <p className="text-sm text-muted-foreground">Stocking details and the latest recorded measurements.</p>
+          </div>
+          {batches.length > 0 && <div className="w-full sm:w-48">
+            <Label htmlFor="batch-status-filter">Show batches</Label>
+            <Select value={batchFilter} onValueChange={value => setBatchFilter(value as BatchFilter)}>
+              <SelectTrigger id="batch-status-filter"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">Active ({activeBatches.length})</SelectItem>
+                <SelectItem value="closed">Closed ({closedBatchCount})</SelectItem>
+                <SelectItem value="all">All ({batches.length})</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>}
         </div>
+        <AnimatedResults transitionKey={batchFilter}>
         {batches.length === 0 ? (
           <Card className="p-5"><p className="text-sm text-muted-foreground">No batches registered yet. Add the current batch’s stocking date and starting measurement to activate a forecast.</p></Card>
+        ) : visibleBatches.length === 0 ? (
+          <Card className="p-5"><p className="text-sm text-muted-foreground">No {batchFilter} batches. Choose another filter to view the registered batches.</p></Card>
         ) : (
-          <div className="grid gap-3 lg:grid-cols-2">
-            {batches.map(batch => {
+          <div className={`grid gap-3 ${visibleBatches.length > 1 ? "lg:grid-cols-2" : ""}`}>
+            {visibleBatches.map(batch => {
               const latestWeight = records.find(record => record.fish_batch_id === batch.id && record.avg_weight_g != null);
               const latestLength = records.find(record => record.fish_batch_id === batch.id && record.avg_length_cm != null);
               const density = formatStockingDensity(batch.stocked_fish_count, batch.pond_profiles?.area_sqm);
@@ -398,6 +423,7 @@ const GrowthAdmin = () => {
             })}
           </div>
         )}
+        </AnimatedResults>
       </section>
 
       <section aria-labelledby="measurements-heading" className="space-y-3">
@@ -417,6 +443,7 @@ const GrowthAdmin = () => {
             </Select>
           </div>}
         </div>
+        <AnimatedResults transitionKey={historyBatchId}>
         {visibleRecords.length === 0 ? (
           <Card className="p-4 sm:p-6"><EmptyState icon={Fish} title={records.length ? "No measurements for this batch." : "No growth measurements yet."} description={records.length ? "Choose another batch or add a measurement for this one." : "Record the next sample to update the estimate and begin checking it against BFAR fish."} /></Card>
         ) : (
@@ -455,6 +482,7 @@ const GrowthAdmin = () => {
             ))}
           </div>
         )}
+        </AnimatedResults>
       </section>
       </>}
     </AppShell>

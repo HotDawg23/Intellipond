@@ -2,6 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
+@keyframes batch-title-slide {
+  from { transform: translateX(0); }
+  to { transform: translateX(calc(0px - var(--batch-title-overflow, 0px))); }
+}
+
+@media (min-width: 640px) and (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .batch-option:hover .batch-title-text--overflow,
+  .batch-option:focus-visible .batch-title-text--overflow {
+    animation: batch-title-slide 2.4s ease-in-out 150ms forwards;
+  }
+}
+
 @keyframes batch-details-open {
   from { height: 0; opacity: 0; }
   to { height: var(--radix-collapsible-content-height); opacity: 1; }

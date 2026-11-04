@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { AnimatedResults } from "@/components/AnimatedResults";
 import { PageHeader, EmptyState, LoadingState, LoadError } from "@/components/Common";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
@@ -148,6 +149,7 @@ const Users = () => {
           </Select>
         </div>
         {loadError && <div className="p-4 sm:p-5"><LoadError message={loadError} onRetry={() => void load()} /></div>}
+        <AnimatedResults transitionKey={activeGroup}>
         {!hasLoaded ? (
           loadError ? null : <LoadingState label="Loading users" />
         ) : users.length === 0 ? (
@@ -157,6 +159,7 @@ const Users = () => {
         ) : (
           <div className="divide-y divide-border">{groups[activeGroup].map(renderRow)}</div>
         )}
+        </AnimatedResults>
       </Card>
     </AppShell>
   );

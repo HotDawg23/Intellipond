@@ -3,6 +3,7 @@ import { addDays, format, startOfDay, subDays } from "date-fns";
 import { Link } from "react-router-dom";
 import { AlertCircle, ArrowLeft, ArrowRight, ArrowUpRight, Bell, Database, Fish, Waves, Users } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
+import { AnimatedResults } from "@/components/AnimatedResults";
 import { AnimatedNumber } from "@/components/AnimatedNumber";
 import { PageHeader } from "@/components/Common";
 import { Badge } from "@/components/ui/badge";
@@ -346,6 +347,13 @@ const AdminOverview = () => {
                 </Button>
               </div>
 
+              <AnimatedResults
+                transitionKey={alertsLoading ? "loading" : alertsError ? "error" : `page:${alertsPage}:${recentAlerts.map(alert => alert.id).join("|")}`}
+                resize={false}
+                slide={false}
+                className="flex min-h-0 flex-1 flex-col"
+                contentClassName="flex min-h-0 flex-1 flex-col"
+              >
               {alertsLoading ? (
                 <p className="flex flex-1 items-center justify-center px-5 py-8 text-sm text-muted-foreground" role="status">Loading alerts…</p>
               ) : alertsError ? (
@@ -373,6 +381,7 @@ const AdminOverview = () => {
                   ))}
                 </ul>
               )}
+              </AnimatedResults>
               {alertsPageCount > 1 && (
                 <div className="flex min-h-10 shrink-0 items-center justify-between border-t border-border px-3">
                   <span className="text-xs text-muted-foreground">Page {alertsPage + 1} of {alertsPageCount}</span>
@@ -404,6 +413,12 @@ const AdminOverview = () => {
                 </Button>
               </div>
 
+              <AnimatedResults
+                transitionKey={readingsLoading ? "loading" : readingsError ? "error" : `page:${readingsPage}:${recentReadings.map(reading => reading.id).join("|")}`}
+                resize={false}
+                className="flex min-h-0 flex-1 flex-col"
+                contentClassName="flex min-h-0 flex-1 flex-col"
+              >
               {readingsLoading ? (
                 <p className="flex flex-1 items-center justify-center px-5 py-8 text-sm text-muted-foreground" role="status">Loading readings…</p>
               ) : readingsError ? (
@@ -436,6 +451,7 @@ const AdminOverview = () => {
                   })}
                 </ul>
               )}
+              </AnimatedResults>
               {readingsPageCount > 1 && (
                 <div className="flex min-h-10 shrink-0 items-center justify-between border-t border-border px-3">
                   <span className="text-xs text-muted-foreground">Page {readingsPage + 1} of {readingsPageCount}</span>

@@ -181,9 +181,9 @@ const Dashboard = () => {
             </div>
           </div>
           {highlightAlert && (
-            <div className={`grid min-w-0 transition-[grid-template-rows,margin-top,opacity,transform] duration-300 ease-in-out motion-reduce:transition-none sm:overflow-visible ${
+            <div className={`grid min-w-0 transition-[grid-template-rows,margin-top,opacity,transform] duration-300 ease-in-out motion-reduce:transition-none ${
               isDismissingAlert
-                ? "mt-0 grid-rows-[0fr] -translate-y-2 overflow-hidden opacity-0 sm:hidden"
+                ? "mt-0 grid-rows-[0fr] -translate-y-2 overflow-hidden opacity-0"
                 : "mt-5 grid-rows-[1fr] overflow-visible sm:mt-0"
             }`}>
             <div className={`min-h-0 ${isDismissingAlert ? "overflow-hidden" : "overflow-visible"}`}>

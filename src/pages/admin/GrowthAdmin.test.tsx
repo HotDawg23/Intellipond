@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import GrowthAdmin from "@/pages/admin/GrowthAdmin";
@@ -45,5 +45,43 @@ describe("Growth Records summaries", () => {
     expect(screen.getByText(/5.50 mg\/L \(3\)/)).toBeVisible();
     expect(screen.queryByRole("button", { name: /Export growth CSV/i })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Add measurement/i })).toBeVisible();
+  });
+
+  it("filters batches and puts active batches first in the all view", async () => {
+    state.data = {
+      growth_records_with_water_averages: [
+        { id: "active-sample", fish_batch_id: "active", measurement_date: "2026-10-20", batch_name: "Active batch", pond_name: "BFAR", avg_weight_g: 12, avg_length_cm: 6 },
+        { id: "closed-sample", fish_batch_id: "closed-new", measurement_date: "2026-10-21", batch_name: "New closed batch", pond_name: "BFAR", avg_weight_g: 10, avg_length_cm: 5 },
+      ],
+      fish_batches: [
+        { id: "closed-new", pond_id: "pond-1", batch_name: "New closed batch", stocking_date: "2026-10-22", is_active: false, pond_profiles: { name: "BFAR", area_sqm: 100 } },
+        { id: "closed-old", pond_id: "pond-1", batch_name: "Old closed batch", stocking_date: "2025-10-01", is_active: false, pond_profiles: { name: "BFAR", area_sqm: 100 } },
+        { id: "active", pond_id: "pond-1", batch_name: "Active batch", stocking_date: "2026-10-08", is_active: true, pond_profiles: { name: "BFAR", area_sqm: 100 } },
+      ],
+      pond_profiles: [{ id: "pond-1", name: "BFAR", area_sqm: 100 }],
+    };
+    Object.defineProperty(Element.prototype, "scrollIntoView", { configurable: true, value: vi.fn() });
+
+    render(<GrowthAdmin />);
+    const batchSection = await screen.findByRole("region", { name: "Fish batches" });
+    expect(within(batchSection).getAllByRole("heading", { level: 3 }).map(heading => heading.textContent)).toEqual(["Active batch"]);
+
+    fireEvent.click(screen.getByRole("combobox", { name: "Show batches" }));
+    fireEvent.click(await screen.findByRole("option", { name: "All (3)" }));
+    expect(within(batchSection).getAllByRole("heading", { level: 3 }).map(heading => heading.textContent)).toEqual([
+      "Active batch", "New closed batch", "Old closed batch",
+    ]);
+
+    fireEvent.click(screen.getByRole("combobox", { name: "Show batches" }));
+    fireEvent.click(await screen.findByRole("option", { name: "Closed (2)" }));
+    expect(within(batchSection).getAllByRole("heading", { level: 3 }).map(heading => heading.textContent)).toEqual([
+      "New closed batch", "Old closed batch",
+    ]);
+
+    const measurements = screen.getByRole("region", { name: "Measurements" });
+    fireEvent.click(screen.getByRole("combobox", { name: "Filter by batch" }));
+    fireEvent.click(await screen.findByRole("option", { name: "Active batch" }));
+    expect(within(measurements).getByText("Active batch · BFAR")).toBeVisible();
+    expect(within(measurements).queryByText("New closed batch · BFAR")).not.toBeInTheDocument();
   });
 });
