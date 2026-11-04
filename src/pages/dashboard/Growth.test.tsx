@@ -43,7 +43,7 @@ describe("Growth Monitoring", () => {
     const today = new Date().toISOString().slice(0, 10);
     state.data = {
       bangus_growth_records: [{ id: "a", fish_batch_id: "batch-a", pond_id: "pond-a", recorded_at: `${today}T00:00:00Z`, avg_weight_g: 10, avg_length_cm: 5 }],
-      fish_batches: [{ id: "batch-a", pond_id: "pond-a", batch_name: "Current batch", stocking_date: today, stocked_fish_count: null, initial_weight_g: 2, initial_length_cm: 2, pond_profiles: { name: "Pond A", area_sqm: 100 } }],
+      fish_batches: [{ id: "batch-a", pond_id: "pond-a", batch_name: "Current batch", stocking_date: today, stocked_fish_count: null, initial_weight_g: 2, initial_length_cm: 2, is_active: true, pond_profiles: { name: "Pond A", area_sqm: 100 } }],
     };
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false }));
 
@@ -58,7 +58,7 @@ describe("Growth Monitoring", () => {
     const today = new Date().toISOString().slice(0, 10);
     state.data = {
       bangus_growth_records: [{ id: "a", fish_batch_id: "batch-a", pond_id: "pond-a", recorded_at: `${today}T00:00:00Z`, avg_weight_g: 10, avg_length_cm: null }],
-      fish_batches: [{ id: "batch-a", pond_id: "pond-a", batch_name: "Current batch", stocking_date: today, stocked_fish_count: null, initial_weight_g: 2, initial_length_cm: null, pond_profiles: { name: "Pond A", area_sqm: 100 } }],
+      fish_batches: [{ id: "batch-a", pond_id: "pond-a", batch_name: "Current batch", stocking_date: today, stocked_fish_count: null, initial_weight_g: 2, initial_length_cm: null, is_active: true, pond_profiles: { name: "Pond A", area_sqm: 100 } }],
     };
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => model }));
 
@@ -79,8 +79,8 @@ describe("Growth Monitoring", () => {
         { id: "b", fish_batch_id: "batch-b", pond_id: "pond-b", recorded_at: new Date().toISOString(), avg_weight_g: 900, avg_length_cm: 40 },
       ],
       fish_batches: [
-        { id: "batch-a", pond_id: "pond-a", batch_name: "Pond A batch", stocking_date: oldDate, stocked_fish_count: 100, initial_weight_g: 2, initial_length_cm: 2, pond_profiles: { name: "Pond A", area_sqm: 100 } },
-        { id: "batch-b", pond_id: "pond-b", batch_name: "Pond B batch", stocking_date: oldDate, stocked_fish_count: 100, initial_weight_g: 2, initial_length_cm: 2, pond_profiles: { name: "Pond B", area_sqm: 100 } },
+        { id: "batch-a", pond_id: "pond-a", batch_name: "Pond A batch", stocking_date: oldDate, stocked_fish_count: 100, initial_weight_g: 2, initial_length_cm: 2, is_active: true, pond_profiles: { name: "Pond A", area_sqm: 100 } },
+        { id: "batch-b", pond_id: "pond-b", batch_name: "Pond B batch", stocking_date: oldDate, stocked_fish_count: 100, initial_weight_g: 2, initial_length_cm: 2, is_active: true, pond_profiles: { name: "Pond B", area_sqm: 100 } },
       ],
     };
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => model }));
@@ -91,5 +91,19 @@ describe("Growth Monitoring", () => {
     expect(screen.queryByText(/Estimate for/)).not.toBeInTheDocument();
     expect(screen.getAllByTestId("growth-chart")).toHaveLength(2);
     expect(screen.getAllByTestId("growth-chart")[0]).not.toHaveTextContent("900");
+  });
+
+  it("shows historical BFAR measurements without presenting a current estimate", async () => {
+    state.data = {
+      bangus_growth_records: [{ id: "sample", fish_batch_id: "historical", pond_id: "pond-1", recorded_at: "2025-10-17T00:00:00Z", avg_weight_g: 0.23, avg_length_cm: 2.888 }],
+      fish_batches: [{ id: "historical", pond_id: "pond-1", batch_name: "BFAR Pond 1 Second Cycle 2025", stocking_date: "2025-10-01", stocked_fish_count: null, initial_weight_g: null, initial_length_cm: null, is_active: false, pond_profiles: { name: "BFAR 2025 Pond 1", area_sqm: null } }],
+    };
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => model }));
+
+    render(<Growth />);
+    expect(await screen.findByRole("heading", { name: "Historical batch" })).toBeVisible();
+    expect(screen.getByText("Closed batch")).toBeVisible();
+    expect(screen.getAllByTestId("growth-chart")[0]).toHaveTextContent("0.23");
+    expect(screen.queryByRole("heading", { name: "7-day growth estimate" })).not.toBeInTheDocument();
   });
 });

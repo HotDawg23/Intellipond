@@ -25,6 +25,7 @@ type FishBatch = {
   stocked_fish_count: number | null;
   initial_weight_g: number | null;
   initial_length_cm: number | null;
+  is_active: boolean;
   pond_profiles?: { name: string; area_sqm: number | null } | null;
 };
 
@@ -55,7 +56,7 @@ const Growth = () => {
         .order("recorded_at", { ascending: true }),
       supabase.from("fish_batches")
         .select("id,pond_id,batch_name,stocking_date,stocked_fish_count,initial_weight_g,initial_length_cm,is_active,pond_profiles(name,area_sqm)")
-        .eq("is_active", true)
+        .order("is_active", { ascending: false })
         .order("stocking_date", { ascending: false }),
       fetch(`${import.meta.env.BASE_URL}growth-model.json`).then(async response => {
         if (!response.ok) throw new Error("Growth reference model could not be loaded.");
@@ -97,22 +98,22 @@ const Growth = () => {
         <Card className="p-6 text-sm text-muted-foreground" role="status">Loading growth records…</Card>
       ) : dataError ? null : batches.length === 0 ? (
         <Card className="p-6">
-          <EmptyState icon={Fish} title="No active fish batch yet" description="An administrator can add a batch and its starting measurement in Growth Records." />
+          <EmptyState icon={Fish} title="No fish batches yet" description="An administrator can add a batch and its starting measurement in Growth Records." />
           {role === "admin" && <div className="mt-4 text-center"><Button asChild><Link to="/admin/growth">Set up a fish batch</Link></Button></div>}
         </Card>
       ) : selectedBatch && (
         <div className="space-y-5">
           <section aria-labelledby="batch-heading" className="flex flex-wrap items-end justify-between gap-4">
-            <div><h2 id="batch-heading" className="text-xl font-semibold">Current batch</h2><p className="mt-1 text-sm text-muted-foreground">Choose a batch to see only its own measurements and estimate.</p></div>
+            <div><h2 id="batch-heading" className="text-xl font-semibold">{selectedBatch.is_active ? "Current batch" : "Historical batch"}</h2><p className="mt-1 text-sm text-muted-foreground">Choose a batch to see its measurements. Current batches also show an estimate.</p></div>
             <div className="w-full sm:w-72">
               <label htmlFor="growth-batch" className="mb-1 block text-sm font-medium">Fish batch</label>
               <Select value={selectedBatch.id} onValueChange={setSelectedBatchId}>
                 <SelectTrigger id="growth-batch"><SelectValue /></SelectTrigger>
-                <SelectContent>{batches.map(batch => <SelectItem key={batch.id} value={batch.id}>{batch.batch_name} · {batch.pond_profiles?.name ?? "Pond"}</SelectItem>)}</SelectContent>
+                <SelectContent>{batches.map(batch => <SelectItem key={batch.id} value={batch.id}>{batch.batch_name} · {batch.pond_profiles?.name ?? "Pond"}{batch.is_active ? "" : " (Closed)"}</SelectItem>)}</SelectContent>
               </Select>
             </div>
           </section>
-          <Card className="overflow-hidden p-5 sm:p-6">
+          {selectedBatch.is_active ? <Card className="overflow-hidden p-5 sm:p-6">
             <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border pb-4">
               <div>
                 <p className="text-xs font-medium uppercase tracking-wide text-primary">{selectedBatch.batch_name}</p>
@@ -136,7 +137,11 @@ const Growth = () => {
                 {model?.sources[0] && <a className="inline-flex items-center gap-1 text-primary underline-offset-4 hover:underline" href={model.sources[0].url} target="_blank" rel="noreferrer">Source: {model.sources[0].publisher} {model.sources[0].year}<ArrowUpRight className="h-3.5 w-3.5" /></a>}
               </div>
             </details>
-          </Card>
+          </Card> : <Card className="p-5 sm:p-6">
+            <Badge variant="secondary">Closed batch</Badge>
+            <h3 className="mt-3 text-xl font-semibold">{selectedBatch.batch_name}</h3>
+            <p className="mt-1 text-sm text-muted-foreground">{selectedBatch.pond_profiles?.name ?? "Pond"} · stocked {formatDate(selectedBatch.stocking_date)}. These are historical measurements; this batch has no current growth estimate.</p>
+          </Card>}
           <section aria-labelledby="growth-history-heading">
             <div className="mb-3"><h2 id="growth-history-heading" className="text-lg font-semibold">Measured growth</h2><p className="text-sm text-muted-foreground">These charts show actual samples from {selectedBatch.batch_name}, without the predicted values. Each chart has its own unit.</p></div>
             {batchRecords.length === 0 ? <Card className="p-5 text-sm text-muted-foreground">No follow-up measurements yet. The starting measurements above are from stocking.</Card> : (
