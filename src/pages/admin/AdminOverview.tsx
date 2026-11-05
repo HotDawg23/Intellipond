@@ -267,7 +267,7 @@ const AdminOverview = () => {
                   <ArrowUpRight className="mt-1 h-4 w-4 text-muted-foreground/60 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" aria-hidden="true" />
                 </div>
                 <div className="mt-4 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">{tile.label}</div>
-                <div className="mt-1 font-mono text-3xl font-semibold tabular-nums">
+                <div className="mt-1 font-bitcount-grid-single text-3xl font-normal tabular-nums">
                   {loading || !counts ? "—" : (
                     <span className="inline-block motion-safe:animate-[metric-number-enter_450ms_ease-out_both]">
                       <AnimatedNumber value={tile.value ?? 0} startAtZero />
@@ -295,6 +295,10 @@ const AdminOverview = () => {
               <p className="py-8 text-sm text-muted-foreground" role="status">Loading activity…</p>
             ) : error ? (
               <p className="py-8 text-sm text-muted-foreground">Activity is unavailable.</p>
+            ) : activityTotals.readings === 0 && activityTotals.alerts === 0 ? (
+              <p className="flex min-h-56 items-center justify-center text-center text-sm text-muted-foreground xl:h-[calc(100%-4rem)]" role="status">
+                No sensor readings or alerts in the last 7 days.
+              </p>
             ) : (
               <div className="mt-6 space-y-10 xl:flex xl:h-[calc(100%-5rem)] xl:flex-col xl:justify-evenly xl:space-y-0">
                 {([
@@ -306,7 +310,11 @@ const AdminOverview = () => {
                       <h4 className="text-sm font-medium">{series.title}</h4>
                       <span className="text-sm font-semibold tabular-nums">{series.total.toLocaleString()} <span className="font-normal text-muted-foreground">total</span></span>
                     </div>
-                    <div className="grid grid-cols-7 gap-2" role="list" aria-label={`${series.title} per day`}>
+                    {series.total === 0 ? (
+                      <p className="flex h-36 items-center justify-center rounded-md bg-muted/30 px-4 text-center text-sm text-muted-foreground">
+                        No {series.key === "readings" ? "sensor readings" : "new alerts"} in the last 7 days.
+                      </p>
+                    ) : <div className="grid grid-cols-7 gap-2" role="list" aria-label={`${series.title} per day`}>
                       {activityDays.map((day, index) => (
                         <div key={day.date} role="listitem" className="min-w-0 text-center" aria-label={`${day.label}: ${day[series.key]} ${series.title.toLowerCase()}`}>
                           <span className="block text-xs font-medium tabular-nums">{day[series.key].toLocaleString()}</span>
@@ -322,10 +330,12 @@ const AdminOverview = () => {
                           <span className="mt-2 block truncate text-[10px] text-muted-foreground sm:text-xs" aria-hidden="true">{day.date}</span>
                         </div>
                       ))}
-                    </div>
+                    </div>}
                   </div>
                 ))}
-                <p className="text-xs text-muted-foreground">Each chart uses its own scale.</p>
+                {activityTotals.readings > 0 && activityTotals.alerts > 0 && (
+                  <p className="text-xs text-muted-foreground">Each chart uses its own scale.</p>
+                )}
               </div>
             )}
           </Card>

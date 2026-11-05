@@ -92,7 +92,7 @@ const Settings = () => {
             <div className="space-y-3 rounded-lg border border-border p-4">
               <div>
                 <div className="font-medium text-sm">Optional Critical bands</div>
-                <p className="text-xs text-muted-foreground">Leave blank until BFAR approves values. Existing thresholds and Critical rules remain active.</p>
+                <div className="text-xs text-muted-foreground">Critical bands are used to trigger high-priority alerts. Leave blank to disable.</div>
               </div>
               <OptionalThreshold label="High DO (mg/L)" value={s.critical_do_high} onChange={value => setS({ ...s, critical_do_high: value })} />
               <div className="grid gap-3 sm:grid-cols-2">

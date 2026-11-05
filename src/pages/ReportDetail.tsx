@@ -10,16 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { getReportSnapshot, type Report, type ReportParameter } from "@/lib/report-snapshot";
+import { formatReportDateTime as dateTime, formatReportPeriod } from "@/lib/report-dates";
 
-const manilaDateTime = new Intl.DateTimeFormat("en-US", {
-  timeZone: "Asia/Manila",
-  year: "numeric",
-  month: "short",
-  day: "numeric",
-  hour: "numeric",
-  minute: "2-digit",
-});
-const dateTime = (value: string | null) => value ? manilaDateTime.format(new Date(value)) : "—";
 const valueWithUnit = (value: number | null, unit = "") =>
   value === null ? "—" : `${Number(value).toFixed(2)}${unit ? ` ${unit}` : ""}`;
 const changeWithUnit = (value: number | null, unit: string) =>
@@ -91,7 +83,7 @@ const ReportDetail = ({ admin = false }: { admin?: boolean }) => {
               {snapshot.pond_name}{snapshot.batch_name ? ` · ${snapshot.batch_name}` : ""}
             </p>
             <div className="mt-4 grid gap-2 border-t border-border pt-4 text-sm text-muted-foreground sm:grid-cols-2">
-              <span>Period: {report.period_start} to {report.period_end}</span>
+              <span>Period: {formatReportPeriod(report.period_start, report.period_end)}</span>
               <span>Generated: {dateTime(snapshot.generated_at)} by an administrator</span>
             </div>
           </header>
@@ -100,9 +92,9 @@ const ReportDetail = ({ admin = false }: { admin?: boolean }) => {
             <Card className="p-5 sm:p-6">
               <h2 className="text-lg font-semibold">Data coverage</h2>
               <div className="mt-3 grid gap-3 text-sm sm:grid-cols-3">
-                <div><p className="text-muted-foreground">Sensor readings</p><p className="text-xl font-semibold tabular-nums">{snapshot.readings.count}</p></div>
-                <div><p className="text-muted-foreground">Alerts raised</p><p className="text-xl font-semibold tabular-nums">{snapshot.alerts.count}</p></div>
-                <div><p className="text-muted-foreground">Growth measurements</p><p className="text-xl font-semibold tabular-nums">{snapshot.growth.count}</p></div>
+                <div><p className="text-muted-foreground">Sensor readings</p><p className="font-sans text-2xl font-normal tabular-nums">{snapshot.readings.count}</p></div>
+                <div><p className="text-muted-foreground">Alerts raised</p><p className="font-sans text-2xl font-normal tabular-nums">{snapshot.alerts.count}</p></div>
+                <div><p className="text-muted-foreground">Growth measurements</p><p className="font-sans text-2xl font-normal tabular-nums">{snapshot.growth.count}</p></div>
               </div>
               <p className="mt-3 text-xs text-muted-foreground">
                 Reading range: {dateTime(snapshot.readings.first_at)} to {dateTime(snapshot.readings.last_at)}.

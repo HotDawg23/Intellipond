@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -18,7 +19,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Info, MapPin, Pencil, Plus, Ruler, Trash2, Waves, X } from "lucide-react";
+import { ChevronDown, Info, MapPin, Pencil, Plus, Ruler, Trash2, Waves, X } from "lucide-react";
 import { toast } from "sonner";
 
 type PondProfile = {
@@ -142,9 +143,6 @@ const Ponds = () => {
         subtitle="Manage your aquaculture sites."
         actions={
           <>
-            <Button onClick={startAdd} className="gradient-aqua border-0 text-white">
-              <Plus className="mr-2 h-4 w-4" />New pond
-            </Button>
             {ponds.length > 0 && (
               <Button
                 type="button"
@@ -156,6 +154,9 @@ const Ponds = () => {
                 {deleteMode ? "Done" : "Delete ponds"}
               </Button>
             )}
+            <Button onClick={startAdd} className="gradient-aqua border-0 text-white">
+              <Plus className="mr-2 h-4 w-4" />New pond
+            </Button>
           </>
         }
       />
@@ -184,10 +185,10 @@ const Ponds = () => {
           <EmptyState icon={Waves} title="No pond profiles yet." description="Add your first pond to start monitoring." />
         </Card>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid items-start gap-4 sm:grid-cols-2">
           {ponds.map(pond => (
-            <Card key={pond.id} className="overflow-hidden border-border/80">
-              <div className="p-4 sm:p-5">
+            <Card key={pond.id} className="overflow-hidden border-border/80 md:h-[340px]">
+              <div className="p-4 sm:p-5 md:flex md:h-full md:flex-col">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-3">
                     <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
@@ -237,7 +238,23 @@ const Ponds = () => {
                   </div>
                 </div>
 
-                {pond.notes && <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">{pond.notes}</p>}
+                {pond.notes && (
+                  <Collapsible className="mt-3 border-t border-border pt-3 text-sm md:hidden">
+                    <CollapsibleTrigger className="group flex w-full items-center justify-between gap-2 text-left font-medium text-primary focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                      <span>Notes</span>
+                      <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-180 motion-reduce:transition-none" aria-hidden="true" />
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="overflow-hidden data-[state=open]:animate-[batch-details-open_180ms_ease-out] data-[state=closed]:animate-[batch-details-close_180ms_ease-out] motion-reduce:animate-none">
+                      <p className="mt-3 whitespace-pre-wrap break-words text-muted-foreground">{pond.notes}</p>
+                    </CollapsibleContent>
+                  </Collapsible>
+                )}
+                <div className="mt-3 hidden min-h-0 flex-1 flex-col border-t border-border pt-3 text-sm md:flex">
+                  <h3 className="font-medium text-primary">Notes</h3>
+                  <div aria-label={`Notes for ${pond.name}`} role="region" className="mt-2 min-h-0 flex-1 overflow-y-auto overscroll-contain pr-2">
+                    <p className="whitespace-pre-wrap break-words text-muted-foreground">{pond.notes || "No notes added."}</p>
+                  </div>
+                </div>
               </div>
             </Card>
           ))}

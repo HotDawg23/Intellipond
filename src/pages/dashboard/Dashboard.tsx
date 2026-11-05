@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Droplets, FlaskConical, Thermometer, Eye, Activity, Fish, AlertCircle, Waves, TrendingUp, Siren, Lightbulb, WifiOff, ChevronDown } from "lucide-react";
+import { Droplets, FlaskConical, Thermometer, Eye, Activity, Fish, AlertCircle, Waves, TrendingUp, Siren, Lightbulb, ChevronDown } from "lucide-react";
 
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { evaluatePond, getSettings, Settings, DEFAULT_SETTINGS } from "@/lib/pond";
@@ -130,27 +130,6 @@ const Dashboard = () => {
       {!hasLoaded ? (
         loadError ? null : <Card><LoadingState label="Loading pond overview" /></Card>
       ) : <>
-      {sensorOffline && (
-        <Card role="alert" className="mb-6 border-0 bg-amber-50/80 p-4 dark:bg-amber-950/30">
-          <div className="flex items-start gap-3">
-            <WifiOff className="mt-0.5 h-5 w-5 shrink-0 text-amber-700 dark:text-amber-300" />
-            <div>
-              <div className="font-semibold text-amber-900 dark:text-amber-200">Sensor data is offline</div>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {latest
-                  ? `No water parameter readings have arrived in the last ${SENSOR_OFFLINE_AFTER_MINUTES} minutes. Check that the sensors are in the water, powered on, and connected to the network.`
-                  : "No water parameter readings have been received yet. Check that the sensors are in the water, powered on, and connected to the network."}
-              </p>
-              {latest && (
-                <p className="mt-2 text-xs font-mono text-muted-foreground">
-                  Last reading · {format(new Date(latest.recorded_at), "MMM d, HH:mm")}
-                </p>
-              )}
-            </div>
-          </div>
-        </Card>
-      )}
-
       {/* Hero status */}
       <Card className="relative mb-6 w-full overflow-hidden border-0 text-white" style={{ background: "var(--gradient-deep)" }}>
         <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,hsl(188_85%_55%/0.3),transparent_50%)]" />
@@ -164,15 +143,17 @@ const Dashboard = () => {
                 <div className="font-coolvetica text-5xl font-semibold capitalize">{dashboardStatus}</div>
                 <Badge variant="outline" className={statusColor + " border-0"}>{sensorOffline ? "No live data" : <span className="font-bitcount-grid-single">{evaluation.score}/100</span>}</Badge>
               </div>
-              <p className="mt-3 text-white/90 max-w-md">
+              <p className="mt-3 text-white/90 max-w-md" role={sensorOffline ? "alert" : undefined}>
                 {sensorOffline
-                  ? "The pond condition cannot be confirmed until fresh sensor readings arrive."
+                  ? latest
+                    ? `No readings in the last ${SENSOR_OFFLINE_AFTER_MINUTES} minutes. Pond condition is unconfirmed; check sensor power and connection.`
+                    : "No readings received yet. Check sensor placement, power, and connection."
                   : evaluation.issues.length === 0 ? "All parameters are within optimal range." : evaluation.issues.join(" · ")}
               </p>
             </div>
             <div className="flex flex-wrap items-center justify-start gap-x-6 gap-y-3">
               <div className="shrink-0 text-xs font-mono text-white/90">
-                Last reading · {latest ? format(new Date(latest.recorded_at), "MMM d, HH:mm") : "None yet"}
+                Last reading · {latest ? format(new Date(latest.recorded_at), "MMM d, yyyy · HH:mm") : "None yet"}
               </div>
               <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
                 <MiniStat icon={Fish} label="Growth records" value={growthCount.toString()} />
@@ -229,7 +210,7 @@ const Dashboard = () => {
                   <div className="mt-2 break-words text-[15px] font-semibold leading-snug">{highlightAlert.message}</div>
                   <div className="mt-1.5 text-xs text-muted-foreground">
                     Last detected {format(new Date(highlightAlert.last_detected_at ?? highlightAlert.created_at), "MMM d \u00b7 HH:mm")}
-                    {formatAlertReading(highlightAlert) && <span className="mt-1 block sm:mt-0 sm:inline"><span className="hidden sm:inline">{" \u00b7 "}</span>Latest value <span className="font-bitcount-grid-single">{formatAlertReading(highlightAlert)}</span></span>}
+                    {formatAlertReading(highlightAlert) && <span className="mt-1 block sm:mt-0 sm:inline"><span className="hidden sm:inline">{" \u00b7 "}</span>Latest value {formatAlertReading(highlightAlert)}</span>}
                   </div>
                 </div>
               </div>
@@ -403,7 +384,7 @@ const Dashboard = () => {
                     <span className="text-[10px] text-muted-foreground">{format(new Date(a.last_detected_at ?? a.created_at), "MMM d · HH:mm")}</span>
                   </div>
                   <div className="text-sm font-medium mt-2">{a.message}</div>
-                  {formatAlertReading(a) && <div className="mt-1 text-xs text-muted-foreground">Latest value: <span className="font-bitcount-grid-single">{formatAlertReading(a)}</span></div>}
+                  {formatAlertReading(a) && <div className="mt-1 text-xs text-muted-foreground">Latest value: {formatAlertReading(a)}</div>}
                   {a.recommendation && <div className="text-xs text-muted-foreground mt-1">→ {a.recommendation}</div>}
                 </div>
               ))}
@@ -426,7 +407,7 @@ const MiniStat = ({ icon: Icon, label, value }: MiniStatProps) => (
   <div className="flex items-center gap-2">
     <Icon className="h-[13px] w-[13px] shrink-0 text-white/80" aria-hidden="true" />
     <span className="text-[11px] uppercase tracking-wider text-white/90">{label}</span>
-    <span className="font-bitcount-grid-single text-[13.5px] font-semibold text-white">{value}</span>
+    <span className="font-sans text-[13.5px] font-semibold text-white">{value}</span>
   </div>
 );
 

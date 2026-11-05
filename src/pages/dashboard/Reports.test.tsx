@@ -86,6 +86,7 @@ describe("Operator reports", () => {
   it("lists shared reports without creation or raw exports", async () => {
     render(<MemoryRouter><Reports /></MemoryRouter>);
     expect(await screen.findByRole("link", { name: "Weekly pond summary" })).toBeVisible();
+    expect(screen.getByText(/Oct 20, 2026 to Oct 27, 2026/)).toBeVisible();
     expect(screen.queryByRole("button", { name: "New report" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Export readings" })).toBeNull();
   });
@@ -98,6 +99,7 @@ describe("Operator reports", () => {
       </MemoryRouter>,
     );
     expect(await screen.findByRole("heading", { name: "Weekly pond summary" })).toBeVisible();
+    expect(screen.getByText("Period: Oct 20, 2026 to Oct 27, 2026")).toBeVisible();
     expect(screen.getByText("Checked the aerator.")).toBeVisible();
     expect(screen.getByText("No alerts were raised in this period.")).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Print or save PDF" }));

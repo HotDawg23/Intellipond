@@ -224,13 +224,13 @@ function GrowthMetric({ label, unit, icon: Icon, baseline, metricModel, horizonD
     {baseline ? <>
       {estimate && window.targetDate ? <div className="mt-4 rounded-xl border border-primary/15 bg-primary/5 p-4">
         <p className="text-sm font-medium text-primary">Estimate for {formatDate(window.targetDate)}</p>
-        <p className="mt-2 text-3xl font-semibold tabular-nums tracking-tight sm:text-4xl">{estimate.expected.toFixed(2)} <span className="text-lg font-normal">{unit}</span></p>
+        <p className="mt-2 tabular-nums tracking-tight"><span className="font-bitcount-grid-single text-3xl font-normal sm:text-4xl">{estimate.expected.toFixed(2)}</span> <span className="text-lg font-normal">{unit}</span></p>
         <p className="mt-2 text-xs text-muted-foreground">Reference range: {estimate.low.toFixed(2)}–{estimate.high.toFixed(2)} {unit}</p>
       </div> : <p className="mt-4 rounded-lg bg-muted/60 p-3 text-sm text-muted-foreground" role="status">
         {!metricModel ? "Estimate unavailable; the recorded value is still shown." : window.ageDays != null && window.ageDays > horizonDays ? "New measurement needed for a forward estimate." : "Check the measurement date before forecasting."}
       </p>}
       <div className="mt-4 flex flex-wrap items-end justify-between gap-2 border-t border-border pt-3">
-        <div><p className="text-xs text-muted-foreground">Last actual value</p><p className="text-xl font-semibold tabular-nums">{baseline.value.toFixed(2)} <span className="text-sm font-normal">{unit}</span></p></div>
+        <div><p className="text-xs text-muted-foreground">Last actual value</p><p className="tabular-nums"><span className="font-bitcount-grid-single text-2xl font-normal sm:text-3xl">{baseline.value.toFixed(2)}</span> <span className="text-sm font-normal">{unit}</span></p></div>
         <p className="text-xs text-muted-foreground">{baseline.source === "sample" ? "Sampled" : "At stocking"} {formatDate(baseline.date)}</p>
       </div>
     </> : <p className="mt-4 text-sm text-muted-foreground">Add a starting or sampled {label.toLowerCase()} to see an estimate.</p>}

@@ -62,17 +62,17 @@ const SidebarContent = ({
     </nav>
     <div className="p-3 border-t border-sidebar-border space-y-2">
       {role === "admin" && !admin && (
-        <Button variant="ghost" className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent" onClick={() => onNavigate("/admin")}>
+        <Button variant="ghost" className="w-full justify-start text-white hover:bg-sidebar-accent hover:text-white focus-visible:text-white" onClick={() => onNavigate("/admin")}>
           <Settings className="h-4 w-4 mr-2" /> Switch to Admin
         </Button>
       )}
       {admin && (
-        <Button variant="ghost" className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent" onClick={() => onNavigate("/dashboard")}>
+        <Button variant="ghost" className="w-full justify-start text-white hover:bg-sidebar-accent hover:text-white focus-visible:text-white" onClick={() => onNavigate("/dashboard")}>
           <LayoutDashboard className="h-4 w-4 mr-2" /> Operator View
         </Button>
       )}
       <div className="px-2 py-1.5 text-xs text-sidebar-foreground/60 truncate">{user?.email}</div>
-      <Button variant="ghost" className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent" onClick={onSignOut}>
+      <Button variant="ghost" className="w-full justify-start text-white hover:bg-sidebar-accent hover:text-white focus-visible:text-white" onClick={onSignOut}>
         <LogOut className="h-4 w-4 mr-2" /> Sign out
       </Button>
     </div>

@@ -95,7 +95,7 @@ describe("Admin reports", () => {
     renderPage();
     expect(await screen.findByText("October pond report")).toBeVisible();
     expect(screen.getByText("Saved reports").parentElement?.nextElementSibling).toHaveTextContent("1 report");
-    expect(screen.getByText(/BFAR.*2026-10-20 to 2026-10-27/)).toBeVisible();
+    expect(screen.getByText(/BFAR.*Oct 20, 2026 to Oct 27, 2026/)).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Export growth CSV" }));
     await waitFor(() => expect(downloadGrowthRecordsCsv).toHaveBeenCalledOnce());
     expect(toast.success).toHaveBeenCalledWith("Exported 2 growth records");

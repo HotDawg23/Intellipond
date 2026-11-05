@@ -51,12 +51,11 @@ describe("AdminOverview recent activity", () => {
     state.alerts = [];
   });
 
-  it("shows 24-hour empty states and seven daily buckets", async () => {
+  it("shows clear empty states when no recent activity exists", async () => {
     render(<MemoryRouter><AdminOverview /></MemoryRouter>);
     expect(await screen.findByText("No new alerts in the last 24 hours.")).toBeVisible();
     expect(screen.getByText("No new sensor readings in the last 24 hours.")).toBeVisible();
-    expect(screen.getByRole("list", { name: "Sensor readings per day" }).children).toHaveLength(7);
-    expect(screen.getByRole("list", { name: "New alerts per day" }).children).toHaveLength(7);
+    expect(screen.getByText("No sensor readings or alerts in the last 7 days.")).toBeVisible();
   });
 
   it("keeps older active alerts in totals while listing only events from the last 24 hours", async () => {
@@ -71,6 +70,8 @@ describe("AdminOverview recent activity", () => {
     expect(screen.queryByText("Old active incident")).not.toBeInTheDocument();
     expect(screen.getByText("2 unacknowledged", { exact: false })).toBeVisible();
     expect(screen.getByText("DO 5.00 mg/L", { exact: false })).toBeVisible();
+    expect(screen.getByRole("list", { name: "Sensor readings per day" }).children).toHaveLength(7);
+    expect(screen.getByRole("list", { name: "New alerts per day" }).children).toHaveLength(7);
     const listQueries = state.queries.filter(query => query.range);
     expect(listQueries).toHaveLength(2);
     expect(listQueries.every(query => query.filters.some(filter =>

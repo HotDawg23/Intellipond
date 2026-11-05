@@ -1,10 +1,10 @@
 import { Link } from "react-router-dom";
-import { format } from "date-fns";
 import { FileText } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/Common";
 import { getReportSnapshot, type Report } from "@/lib/report-snapshot";
+import { formatReportDateTime, formatReportPeriod } from "@/lib/report-dates";
 
 export const ReportList = ({
   reports, basePath, onManageAccess,
@@ -32,11 +32,11 @@ export const ReportList = ({
               </Link>
               <p className="mt-1 text-sm text-muted-foreground">
                 {snapshot
-                  ? `${snapshot.pond_name}${snapshot.batch_name ? ` · ${snapshot.batch_name}` : ""} · ${report.period_start} to ${report.period_end}`
+                  ? `${snapshot.pond_name}${snapshot.batch_name ? ` · ${snapshot.batch_name}` : ""} · ${formatReportPeriod(report.period_start, report.period_end)}`
                   : report.description || "Older report entry"}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Created {format(new Date(report.created_at), "MMM d, yyyy · h:mm a")}
+                Created {formatReportDateTime(report.created_at)}
                 {onManageAccess && <span> · {report.published_at ? "Shared" : "Admin only"}</span>}
               </p>
             </div>
