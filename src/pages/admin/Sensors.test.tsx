@@ -62,8 +62,8 @@ describe("Sensor Readings filters", () => {
 
   it("filters by the displayed local day and pages 20 readings at a time", async () => {
     render(<Sensors />);
-    expect(await screen.findByText("22 readings")).toBeVisible();
-    expect(state.queries.find(query => query.table === "sensor_readings")?.range).toEqual([0, 19]);
+    expect(await screen.findByText("32 readings")).toBeVisible();
+    expect(state.queries.filter(query => query.table === "sensor_readings").at(-1)?.range).toEqual([0, 19]);
 
     fireEvent.change(screen.getByLabelText("Date"), { target: { value: "2026-10-21" } });
     expect(await screen.findByText("21 readings")).toBeVisible();
@@ -75,7 +75,7 @@ describe("Sensor Readings filters", () => {
     expect(filteredQuery?.orders).toEqual([{ field: "recorded_at", ascending: false }, { field: "id", ascending: false }]);
 
     fireEvent.click(screen.getByRole("button", { name: "Next readings page" }));
-    await waitFor(() => expect(state.queries.filter(query => query.table === "sensor_readings").at(-1)?.range).toEqual([20, 39]));
+    await waitFor(() => expect(state.queries.filter(query => query.table === "sensor_readings").at(-1)?.range).toEqual([20, 20]));
     expect(await screen.findByText("Showing 21–21 of 21")).toBeVisible();
     expect(screen.getByRole("button", { name: "Next readings page" })).toBeDisabled();
 
@@ -89,12 +89,26 @@ describe("Sensor Readings filters", () => {
     fireEvent.change(screen.getByLabelText("Date"), { target: { value: "2026-10-19" } });
     expect(await screen.findByText("No readings for this date.")).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Clear date" }));
-    expect(await screen.findByText("22 readings")).toBeVisible();
+    expect(await screen.findByText("32 readings")).toBeVisible();
+  });
+
+  it("shows dated research estimates inside the regular readings list", async () => {
+    render(<Sensors />);
+
+    expect(await screen.findByText("32 readings")).toBeVisible();
+    fireEvent.change(screen.getByLabelText("Date"), { target: { value: "2025-10-17" } });
+    expect(await screen.findByText("1 reading")).toBeVisible();
+    expect(screen.getAllByText("Research estimate")).toHaveLength(2);
+    const pondNameLabels = screen.getAllByTitle("BFAR 2025 Pond 1 (historical)");
+    expect(pondNameLabels).toHaveLength(2);
+    expect(pondNameLabels[0].querySelector(".truncate") ?? pondNameLabels[0]).toHaveClass("truncate");
+    expect(pondNameLabels[1].querySelector(".truncate") ?? pondNameLabels[1]).toHaveClass("truncate");
+    expect(screen.queryByRole("heading", { name: "Beta sample readings" })).not.toBeInTheDocument();
   });
 
   it("returns to the last page when a deletion makes the current range invalid", async () => {
     render(<Sensors />);
-    expect(await screen.findByText("22 readings")).toBeVisible();
+    expect(await screen.findByText("32 readings")).toBeVisible();
     fireEvent.change(screen.getByLabelText("Date"), { target: { value: "2026-10-21" } });
     expect(await screen.findByText("21 readings")).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Next readings page" }));

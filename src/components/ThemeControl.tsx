@@ -1,15 +1,6 @@
-import { Monitor, Moon, Sun } from "lucide-react";
+import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 
 type ThemeControlProps = {
@@ -18,34 +9,27 @@ type ThemeControlProps = {
 };
 
 export const ThemeControl = ({ className, iconOnly = false }: ThemeControlProps) => {
-  const { theme, setTheme } = useTheme();
-  const Icon = theme === "dark" ? Moon : theme === "light" ? Sun : Monitor;
+  const { theme, resolvedTheme, setTheme } = useTheme();
+  const isDark = (resolvedTheme ?? theme) === "dark";
+  const nextTheme = isDark ? "light" : "dark";
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          size={iconOnly ? "icon" : "sm"}
-          aria-label="Change appearance"
-          title="Change appearance"
-          className={cn("shrink-0", className)}
-        >
-          <Icon aria-hidden="true" className={cn("h-4 w-4", !iconOnly && "mr-2")} />
-          {!iconOnly && <span>Appearance</span>}
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-40">
-        <DropdownMenuLabel>Appearance</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuRadioGroup value={theme ?? "system"} onValueChange={setTheme}>
-          <DropdownMenuRadioItem value="system"><Monitor aria-hidden="true" className="mr-2 h-4 w-4" />System</DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="light"><Sun aria-hidden="true" className="mr-2 h-4 w-4" />Light</DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="dark"><Moon aria-hidden="true" className="mr-2 h-4 w-4" />Dark</DropdownMenuRadioItem>
-        </DropdownMenuRadioGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <Button
+      type="button"
+      variant="ghost"
+      size={iconOnly ? "icon" : "sm"}
+      aria-label={`Switch to ${nextTheme} mode`}
+      aria-pressed={isDark}
+      title={`Switch to ${nextTheme} mode`}
+      onClick={() => setTheme(nextTheme)}
+      className={cn("shrink-0", className)}
+    >
+      <span aria-hidden="true" className="theme-toggle-icons">
+        <Sun className={cn("theme-toggle-icon", isDark ? "theme-toggle-icon--inactive-sun" : "theme-toggle-icon--active")} />
+        <Moon className={cn("theme-toggle-icon", isDark ? "theme-toggle-icon--active" : "theme-toggle-icon--inactive-moon")} />
+      </span>
+      {!iconOnly && <span className="ml-2">Appearance</span>}
+    </Button>
   );
 };
 

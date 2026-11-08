@@ -1,10 +1,18 @@
-export type GrowthMetricModel = {
+type MedianGrowthMetricModel = {
   daily_log_growth_median: number;
   daily_log_growth_p10: number;
   daily_log_growth_p90: number;
 };
 
+type LinearRegressionGrowthMetricModel = {
+  intercept: number;
+  slope: number;
+};
+
+export type GrowthMetricModel = MedianGrowthMetricModel | LinearRegressionGrowthMetricModel;
+
 export type GrowthReferenceModel = {
+  model_kind?: "linear_regression";
   model_version: string;
   model_name: string;
   target_horizon_days: number;
@@ -18,10 +26,10 @@ export type GrowthReferenceModel = {
     day_gaps_between_measurements: { min: number; max: number } | null;
   };
   seven_day_validation: { status: string; note: string };
-  sources: Array<{ title: string; publisher: string; year: number; license: string; url: string }>;
+  sources: Array<{ title: string; publisher: string; year: number; license?: string; url: string }>;
 };
 
-export type GrowthEstimate = { expected: number; low: number; high: number };
+export type GrowthEstimate = { expected: number; low?: number; high?: number };
 
 export type GrowthObservation = {
   fish_batch_id: string | null;
@@ -73,6 +81,11 @@ export function estimateGrowth(
   horizonDays: number,
 ): GrowthEstimate | null {
   if (currentValue == null || !Number.isFinite(currentValue) || currentValue <= 0) return null;
+  if ("intercept" in metricModel) {
+    const rate = metricModel.intercept + metricModel.slope * Math.log(currentValue);
+    const expected = currentValue * Math.exp(rate * horizonDays);
+    return Number.isFinite(expected) && expected > 0 ? { expected } : null;
+  }
   const project = (rate: number) => currentValue * Math.exp(rate * horizonDays);
   return {
     expected: project(metricModel.daily_log_growth_median),

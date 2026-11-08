@@ -14,6 +14,7 @@ vi.mock("@/integrations/supabase/client", () => ({
         select() { return query; },
         order() { return query; },
         eq() { return query; },
+        limit() { return query; },
         then(resolve: (value: unknown) => void) { resolve({ data: state.data[table] ?? [], error: null }); },
       };
       return query;
@@ -27,10 +28,11 @@ vi.mock("recharts", () => ({
 }));
 
 const model = {
+  model_kind: "linear_regression",
   target_horizon_days: 7,
   outputs: {
-    avg_weight_g: { daily_log_growth_median: 0.01, daily_log_growth_p10: 0.005, daily_log_growth_p90: 0.02 },
-    avg_length_cm: { daily_log_growth_median: 0.01, daily_log_growth_p10: 0.005, daily_log_growth_p90: 0.02 },
+    avg_weight_g: { intercept: 0.01, slope: 0 },
+    avg_length_cm: { intercept: 0.01, slope: 0 },
   },
   seven_day_validation: { status: "not_validated", note: "" },
   sources: [],
@@ -51,7 +53,7 @@ describe("Growth Monitoring", () => {
     await waitFor(() => expect(screen.getByText(/10\.00/)).toBeVisible());
     expect(screen.getByRole("alert")).toHaveTextContent("Growth reference model could not be loaded");
     expect(screen.getAllByRole("status")).toHaveLength(2);
-    expect(screen.getAllByText(/Estimate unavailable/)).toHaveLength(3);
+    expect(screen.getAllByText(/Estimate unavailable/)).toHaveLength(4);
   });
 
   it("shows a dated estimate for a fresh weight sample and a clear missing-length state", async () => {
@@ -66,7 +68,8 @@ describe("Growth Monitoring", () => {
     const estimateLabel = await screen.findByText(/Estimate for/);
     expect(screen.getByRole("heading", { name: "7-day growth estimate" })).toBeVisible();
     expect(estimateLabel.compareDocumentPosition(screen.getAllByText("Last actual value")[0]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(screen.getByText(/Reference range:/)).toBeVisible();
+    expect(screen.getByText("10.73")).toBeVisible();
+    expect(screen.queryByText(/Reference range:/)).not.toBeInTheDocument();
     expect(screen.getByText(/Add a starting or sampled average length/)).toBeVisible();
     expect(screen.getByText("Research estimate")).toBeVisible();
     expect(screen.getByText("Active")).toBeVisible();

@@ -14,6 +14,8 @@ vi.mock("@/integrations/supabase/client", () => ({
       const query = {
         select() { return query; },
         order() { return query; },
+        eq() { return query; },
+        limit() { return query; },
         then(resolve: (value: unknown) => void) { resolve({ data: state.data[table] ?? [], error: null }); },
       };
       return query;
@@ -32,6 +34,10 @@ describe("Growth Records summaries", () => {
       ],
       fish_batches: [{ id: "batch-1", pond_id: "pond-1", batch_name: "October batch", stocking_date: "2026-10-06", stocked_fish_count: 1000, initial_weight_g: 2, initial_length_cm: 3, is_active: true, pond_profiles: { name: "BFAR", area_sqm: 100 } }],
       pond_profiles: [{ id: "pond-1", name: "BFAR", area_sqm: 100 }],
+      batch_water_quality_references: [{
+        fish_batch_id: "batch-1", do_mg_l: 5.9, ph: 8.38, temperature_c: 29.6, turbidity_ntu: 27.84,
+        source_title: "Milkfish pond study", source_url: "https://example.com/study", reference_note: "Published context values.", updated_at: "2026-11-08T00:00:00Z",
+      }],
     };
 
     render(<GrowthAdmin />);
@@ -40,6 +46,10 @@ describe("Growth Records summaries", () => {
     expect(screen.getAllByText("6 cm").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Not recorded").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Details")).toHaveLength(2);
+    fireEvent.click(screen.getAllByText("Details")[0]);
+    const researchEstimateLink = screen.getAllByRole("link", { name: "Research estimate" })[0];
+    expect(researchEstimateLink.parentElement).toHaveTextContent("5.90 mg/L");
+    expect(researchEstimateLink).toHaveAttribute("href", "https://example.com/study");
     fireEvent.click(screen.getAllByText("Details")[1]);
     expect(screen.getByText(/Regular feed/)).toBeVisible();
     expect(screen.getByText(/5.50 mg\/L \(3\)/)).toBeVisible();

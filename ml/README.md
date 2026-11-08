@@ -1,6 +1,13 @@
 # Bangus growth model
 
-The current reference model is trained from the farm measurements published in
+The app now uses cohort-weighted linear regression trained on public WorldFish,
+FAO, and Taiwan Fisheries Research Institute measurements. Its formula,
+sources, and held-out errors are in the
+[linear regression evaluation](linear_regression_evaluation.md). It remains a
+**Research estimate** because independent pond accuracy is not established.
+Regenerate the app artifact with `python ml/train_linear_growth_model.py`.
+
+The former pooled-rate model was trained from measurements published in
 Sulu et al. (2016), *The feasibility of milkfish (Chanos chanos) aquaculture in
 Solomon Islands*, WorldFish Program Report 2016-07. The report is available under
 CC BY 4.0: https://digitalarchive.worldfishcenter.org/items/d63bc10f-eec1-4053-86c9-08106a92c55e
@@ -15,15 +22,23 @@ seven-day predictions at BFAR. The trainer reports validation on held-out
 long-interval transitions separately and never treats that as seven-day
 validation.
 
+For a reproducible pre-beta comparison of the frozen model against published
+seven-day fry observations and 20–22-day pond observations, see the
+[evaluation brief](pre_beta_growth_evaluation.md). It reports study-scoped
+errors, not a general forecast accuracy percentage.
+
+The former pooled-rate model is preserved in
+`models/pooled_log_rate_reference.json` for reproducible comparisons.
+
 ## Public data review (October 2026)
 
 | Source | What is available | Decision |
 | --- | --- | --- |
-| [WorldFish Sulu et al. 2016, Table 10](https://digitalarchive.worldfishcenter.org/items/d63bc10f-eec1-4053-86c9-08106a92c55e) | Average weight and length by stocking day for three identifiable pond cohorts; CC BY 4.0. The included CSV converts length from mm to cm. | Retain as the current training source. |
-| [FAO Milkfish Culture and Pond Management, Table 1](https://www.fao.org/4/H9727E/H9727E00.htm) | Weekly weight and length for milkfish fry in four-week laboratory pools, rather than pond grow-out cohorts. | Exclude from this pond model despite the useful sampling interval. |
+| [WorldFish Sulu et al. 2016, Table 10](https://digitalarchive.worldfishcenter.org/items/d63bc10f-eec1-4053-86c9-08106a92c55e) | Average weight and length by stocking day for three identifiable pond cohorts; CC BY 4.0. The included CSV converts length from mm to cm. | Included in regression training. |
+| [FAO Milkfish Culture and Pond Management, Table 1](https://www.fao.org/4/H9727E/H9727E00.htm) | Weekly weight and length for milkfish fry in four laboratory pools, rather than pond grow-out cohorts. | Included in regression training; [evaluated separately](fao_fry_evaluation.md) as an exploratory seven-day fry test. |
 | [SEAFDEC/JIRCAS marine-pen study](https://repository.seafdec.org.ph/bitstream/handle/10862/6335/6335-IMTA-Proceedings2022.pdf) | Reports monthly weight and length sampling in marine pens, but provides fitted-model statistics rather than reusable per-pen measurement rows; reuse terms for those rows are not established. | Exclude unless underlying measurements and permission can be obtained. |
 
-Before adding another online dataset, check its original source and document
+Before adding another online dataset to the app model, check its original source and document
 the license, pond setting, life stage, cohort identity, sampling dates or days,
 units, and conversions. Only add measured rows from comparable milkfish pond
 cohorts. Do not infer weekly points from endpoints, treat plotted values as
@@ -48,18 +63,20 @@ training rows. The same rows and algorithm produce the same version; change
 evaluation compares the model with unchanged-value predictions over all
 eligible intervals; its recent-rate comparison uses paired intervals only.
 When comparable public data becomes available, compare the old and proposed
-models on the same held-out cohorts before replacing the published artifact.
-Without supported improvement, keep the current reference model. Its
-growth-rate spread is not a confidence interval or confidence percentage.
+models on the same held-out cohorts before replacing the app artifact.
+The former model's growth-rate spread is not a confidence interval or
+confidence percentage. Its trainer writes the reference path; only
+`train_linear_growth_model.py` writes the app artifact.
 
 ```sh
 python ml/train_growth_model.py
 python ml/train_growth_model.py --bfar-csv /path/to/bfar_growth.csv --output /path/to/private/bfar_growth_model_candidate.json
 ```
 
-The WorldFish-only command writes `public/growth-model.json`. When `--bfar-csv`
+The WorldFish-only command writes `ml/models/pooled_log_rate_reference.json`.
+The app model is built separately by `train_linear_growth_model.py`. When `--bfar-csv`
 is supplied, `--output` is required so candidate data cannot overwrite the
-published model by default. Store private BFAR data and generated candidates
+app model by default. Store private BFAR data and generated candidates
 outside the repository unless sharing has been authorized.
 
 ## Private BFAR candidate comparison
@@ -85,16 +102,18 @@ intervals for the WorldFish-only and pooled candidates, unchanged-value
 baseline, and recent-growth baseline. It also evaluates a BFAR-only rate model
 on the BFAR fingerling intervals. Compare `paired_mae` values when judging the
 recent-growth baseline, because it requires a prior interval. These results
-measure 13- to 127-day intervals, **not** seven-day forecast accuracy.
+measure 13- to 127-day intervals, **not** seven-day forecast accuracy. This
+compares pooled-rate models, not the app's current regression.
 
 With the available six BFAR means, the pooled candidate has higher overall
 held-out error than the WorldFish-only approach for both weight and length.
 The BFAR-only model improves length on the four fingerling intervals but worsens
 weight against the pooled candidate. Two ponds from one culture cycle cannot
 establish a reliable fingerling model, and there are no exact seven-day BFAR
-pairs. Keep the published model and its Research estimate label until
-independent cycles support a replacement and the existing seven-day validation
-rule can be evaluated. Do not call the reference range a confidence interval.
+pairs. These private checks do not validate the current regression model. The
+app keeps its Research estimate label until independent cycles establish
+reliable seven-day performance. Do not call a reference range a confidence
+interval.
 
 ## Experimental linear-growth comparison
 

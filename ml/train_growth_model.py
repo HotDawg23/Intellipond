@@ -16,7 +16,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parent
 PUBLIC_DATA = ROOT / "data" / "worldfish_milkfish_growth.csv"
-DEFAULT_OUTPUT = ROOT.parent / "public" / "growth-model.json"
+DEFAULT_OUTPUT = ROOT / "models" / "pooled_log_rate_reference.json"
 METRICS = ("avg_weight_g", "avg_length_cm")
 MODEL_ALGORITHM_VERSION = "pooled-log-rate-v1"
 

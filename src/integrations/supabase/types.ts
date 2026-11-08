@@ -263,6 +263,91 @@ export type Database = {
           },
         ]
       }
+      batch_water_quality_references: {
+        Row: {
+          do_mg_l: number
+          fish_batch_id: string
+          ph: number
+          reference_note: string
+          source_title: string
+          source_url: string
+          temperature_c: number
+          turbidity_ntu: number
+          updated_at: string
+        }
+        Insert: {
+          do_mg_l: number
+          fish_batch_id: string
+          ph: number
+          reference_note: string
+          source_title: string
+          source_url: string
+          temperature_c: number
+          turbidity_ntu: number
+          updated_at?: string
+        }
+        Update: {
+          do_mg_l?: number
+          fish_batch_id?: string
+          ph?: number
+          reference_note?: string
+          source_title?: string
+          source_url?: string
+          temperature_c?: number
+          turbidity_ntu?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "batch_water_quality_references_fish_batch_id_fkey"
+            columns: ["fish_batch_id"]
+            isOneToOne: true
+            referencedRelation: "fish_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      batch_mortality_logs: {
+        Row: {
+          created_at: string
+          dead_count: number
+          fish_batch_id: string
+          id: string
+          notes: string | null
+          observed_on: string
+          transferred_in_count: number
+          transferred_out_count: number
+        }
+        Insert: {
+          created_at?: string
+          dead_count?: number
+          fish_batch_id: string
+          id?: string
+          notes?: string | null
+          observed_on: string
+          transferred_in_count?: number
+          transferred_out_count?: number
+        }
+        Update: {
+          created_at?: string
+          dead_count?: number
+          fish_batch_id?: string
+          id?: string
+          notes?: string | null
+          observed_on?: string
+          transferred_in_count?: number
+          transferred_out_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "batch_mortality_logs_fish_batch_id_fkey"
+            columns: ["fish_batch_id"]
+            isOneToOne: false
+            referencedRelation: "fish_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fish_batches: {
         Row: {
           batch_name: string

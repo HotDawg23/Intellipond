@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { alertHistoryCutoff } from "@/lib/alertFilters";
+import { RESEARCH_ESTIMATE_READINGS } from "@/lib/research-estimate-readings";
 
 type OverviewCounts = {
   ponds: number;
@@ -140,7 +141,7 @@ const AdminOverview = () => {
 
         setCounts({
           ponds: pondsResult.count ?? 0,
-          readings: readingsResult.count ?? 0,
+          readings: (readingsResult.count ?? 0) + RESEARCH_ESTIMATE_READINGS.length,
           alerts: alertsResult.count ?? 0,
           openAlerts: openAlertsResult.count ?? 0,
           olderAlerts: olderAlertsResult.count ?? 0,

@@ -3,6 +3,7 @@ import { format } from "date-fns";
 import { Archive, ChevronDown, Fish, Plus } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { AnimatedResults } from "@/components/AnimatedResults";
+import { BatchMortalityRecords } from "@/components/BatchMortalityRecords";
 import { EmptyState, PageHeader, LoadingState, LoadError } from "@/components/Common";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import type { GrowthWaterAveragesRecord } from "@/lib/growth-records-export";
+import type { BatchWaterQualityReference } from "@/lib/batch-water-quality-reference";
 import { formatStockingDensity } from "@/lib/stocking-density";
 import { toast } from "sonner";
 
@@ -43,8 +45,27 @@ const daysBetween = (startDate: string, endDate: string) => {
   return Math.floor((Date.UTC(endYear, endMonth - 1, endDay) - Date.UTC(startYear, startMonth - 1, startDay)) / 86_400_000);
 };
 
-const displayWaterAverage = (value: number | null, count: number | null, unit: string) => {
+const displayWaterAverage = (
+  value: number | null,
+  count: number | null,
+  unit: string,
+  referenceValue?: number,
+  sourceUrl?: string,
+  sourceTitle?: string,
+) => {
   const readingCount = count ?? 0;
+  if ((value == null || readingCount === 0) && referenceValue != null) {
+    return (
+      <>
+        {Number(referenceValue).toFixed(2)}{unit ? ` ${unit}` : ""} (
+        {sourceUrl ? (
+          <a className="text-primary underline underline-offset-2" href={sourceUrl} target="_blank" rel="noreferrer" title={sourceTitle}>
+            Research estimate
+          </a>
+        ) : "Research estimate"})
+      </>
+    );
+  }
   if (value == null || readingCount === 0) return `— (${readingCount})`;
   return `${Number(value).toFixed(2)}${unit ? ` ${unit}` : ""} (${readingCount})`;
 };
@@ -57,6 +78,7 @@ const GrowthAdmin = () => {
   const [records, setRecords] = useState<GrowthRecord[]>([]);
   const [ponds, setPonds] = useState<Pond[]>([]);
   const [batches, setBatches] = useState<FishBatch[]>([]);
+  const [waterReferences, setWaterReferences] = useState<BatchWaterQualityReference[]>([]);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [batchOpen, setBatchOpen] = useState(false);
@@ -85,7 +107,7 @@ const GrowthAdmin = () => {
   const load = useCallback(async () => {
     setLoadError("");
     try {
-      const [growthResult, batchResult, pondResult] = await Promise.all([
+      const [growthResult, batchResult, pondResult, referencesResult] = await Promise.all([
       supabase.from("growth_records_with_water_averages")
         .select("*")
         .order("recorded_at", { ascending: false })
@@ -94,6 +116,7 @@ const GrowthAdmin = () => {
         .select("id,pond_id,batch_name,stocking_date,stocked_fish_count,initial_weight_g,initial_length_cm,is_active,pond_profiles(name,area_sqm)")
         .order("stocking_date", { ascending: false }),
       supabase.from("pond_profiles").select("id,name,area_sqm").order("name"),
+      supabase.from("batch_water_quality_references").select("*"),
     ]);
       if (growthResult.error) throw growthResult.error;
       if (batchResult.error) throw batchResult.error;
@@ -101,6 +124,7 @@ const GrowthAdmin = () => {
     setRecords(growthResult.data ?? []);
     setBatches((batchResult.data ?? []) as unknown as FishBatch[]);
     setPonds(pondResult.data ?? []);
+    setWaterReferences(referencesResult.error ? [] : referencesResult.data ?? []);
     if (pondResult.data?.length) {
       const firstPondId = pondResult.data[0].id;
       setBatchForm(current => current.pond_id ? current : { ...current, pond_id: firstPondId });
@@ -426,6 +450,8 @@ const GrowthAdmin = () => {
         </AnimatedResults>
       </section>
 
+      <div className="mb-6"><BatchMortalityRecords batches={batches} canEdit /></div>
+
       <section aria-labelledby="measurements-heading" className="space-y-3">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
@@ -448,7 +474,9 @@ const GrowthAdmin = () => {
           <Card className="p-4 sm:p-6"><EmptyState icon={Fish} title={records.length ? "No measurements for this batch." : "No growth measurements yet."} description={records.length ? "Choose another batch or add a measurement for this one." : "Record the next sample to update the estimate and begin checking it against BFAR fish."} /></Card>
         ) : (
           <div className="space-y-2">
-            {visibleRecords.map(record => (
+            {visibleRecords.map(record => {
+              const waterReference = waterReferences.find(reference => reference.fish_batch_id === record.fish_batch_id);
+              return (
               <Card key={record.id} className="p-4">
                 <div className="grid gap-3 text-sm sm:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(0,1fr))] sm:items-center">
                   <div className="min-w-0">
@@ -467,19 +495,20 @@ const GrowthAdmin = () => {
                   <CollapsibleContent className="overflow-hidden data-[state=open]:animate-[batch-details-open_180ms_ease-out] data-[state=closed]:animate-[batch-details-close_180ms_ease-out] motion-reduce:animate-none">
                     <div className="mt-3 grid gap-3 text-muted-foreground sm:grid-cols-2 lg:grid-cols-3">
                       <p><span className="font-medium text-foreground">Age:</span> {record.age_days != null ? `${record.age_days} days` : "Not recorded"}</p>
-                      <p><span className="font-medium text-foreground">DO:</span> {displayWaterAverage(record.avg_do_mg_l, record.do_reading_count, "mg/L")}</p>
-                      <p><span className="font-medium text-foreground">pH:</span> {displayWaterAverage(record.avg_ph, record.ph_reading_count, "")}</p>
-                      <p><span className="font-medium text-foreground">Temperature:</span> {displayWaterAverage(record.avg_temperature_c, record.temperature_reading_count, "°C")}</p>
-                      <p><span className="font-medium text-foreground">Turbidity:</span> {displayWaterAverage(record.avg_turbidity_ntu, record.turbidity_reading_count, "NTU")}</p>
+                      <p><span className="font-medium text-foreground">DO:</span> {displayWaterAverage(record.avg_do_mg_l, record.do_reading_count, "mg/L", waterReference?.do_mg_l, waterReference?.source_url, waterReference?.source_title)}</p>
+                      <p><span className="font-medium text-foreground">pH:</span> {displayWaterAverage(record.avg_ph, record.ph_reading_count, "", waterReference?.ph, waterReference?.source_url, waterReference?.source_title)}</p>
+                      <p><span className="font-medium text-foreground">Temperature:</span> {displayWaterAverage(record.avg_temperature_c, record.temperature_reading_count, "°C", waterReference?.temperature_c, waterReference?.source_url, waterReference?.source_title)}</p>
+                      <p><span className="font-medium text-foreground">Turbidity:</span> {displayWaterAverage(record.avg_turbidity_ntu, record.turbidity_reading_count, "NTU", waterReference?.turbidity_ntu, waterReference?.source_url, waterReference?.source_title)}</p>
                       <p><span className="font-medium text-foreground">Average window:</span> {displayDate(record.average_start_date)} – {displayDate(record.average_end_date)}</p>
                       <p><span className="font-medium text-foreground">Feeding notes:</span> {record.feeding_notes || "None"}</p>
                       <p><span className="font-medium text-foreground">Pond condition:</span> {record.pond_condition || "None"}</p>
                     </div>
-                    <p className="mt-3 text-xs text-muted-foreground">Water averages use readings from this pond between the prior sampling date (or stocking) and this measurement. Parentheses show each non-null reading count; current-day averages may update.</p>
+                    <p className="mt-3 text-xs text-muted-foreground">Recorded water averages use readings from this pond between the prior sampling date (or stocking) and this measurement. Parentheses show recorded-reading counts; current-day averages may update.</p>
                   </CollapsibleContent>
                 </Collapsible>
               </Card>
-            ))}
+              );
+            })}
           </div>
         )}
         </AnimatedResults>

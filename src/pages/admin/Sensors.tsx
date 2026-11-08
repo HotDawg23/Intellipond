@@ -14,8 +14,12 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import type { Tables } from "@/integrations/supabase/types";
+import { getResearchEstimateReadings } from "@/lib/research-estimate-readings";
 
-type ReadingWithPond = Tables<"sensor_readings"> & { pond_profiles: Pick<Tables<"pond_profiles">, "name"> | null };
+type ReadingWithPond = Pick<Tables<"sensor_readings">, "id" | "recorded_at" | "do_mg_l" | "ph" | "temperature_c" | "turbidity_ntu"> & {
+  pond_profiles: Pick<Tables<"pond_profiles">, "name"> | null;
+  source?: "research-estimate";
+};
 type PondOption = Pick<Tables<"pond_profiles">, "id" | "name">;
 type DateOrder = "newest" | "oldest";
 const PAGE_SIZE = 20;
@@ -37,7 +41,6 @@ const Sensors = () => {
     const currentRequest = ++requestId.current;
     setLoadError("");
     try {
-      let query = supabase.from("sensor_readings").select("*, pond_profiles(name)", { count: "exact" });
       let startIso: string | undefined;
       let endIso: string | undefined;
       if (selectedDate) {
@@ -47,39 +50,67 @@ const Sensors = () => {
         end.setDate(end.getDate() + 1);
         startIso = start.toISOString();
         endIso = end.toISOString();
-        query = query.gte("recorded_at", startIso).lt("recorded_at", endIso);
       }
-      const [r, p] = await Promise.all([
-        query.order("recorded_at", { ascending: dateOrder === "oldest" })
-          .order("id", { ascending: dateOrder === "oldest" })
-          .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1),
+      const estimates = getResearchEstimateReadings(selectedDate, dateOrder);
+      let countQuery = supabase.from("sensor_readings").select("id", { count: "exact", head: true });
+      if (startIso && endIso) countQuery = countQuery.gte("recorded_at", startIso).lt("recorded_at", endIso);
+      const [countResult, p] = await Promise.all([
+        countQuery,
         supabase.from("pond_profiles").select("id, name"),
       ]);
       if (currentRequest !== requestId.current) return;
       if (p.error) throw p.error;
-      if (r.error) {
-        if (r.error.code === "PGRST103" && page > 0) {
-          let countQuery = supabase.from("sensor_readings").select("id", { count: "exact", head: true });
-          if (startIso && endIso) countQuery = countQuery.gte("recorded_at", startIso).lt("recorded_at", endIso);
-          const { count, error } = await countQuery;
-          if (currentRequest !== requestId.current) return;
-          if (error) throw error;
-          const lastPage = Math.max(0, Math.ceil((count ?? 0) / PAGE_SIZE) - 1);
-          if (page > lastPage) {
-            setHasLoaded(false);
-            setPage(lastPage);
-            return;
-          }
-        }
-        throw r.error;
-      }
-      const lastPage = Math.max(0, Math.ceil((r.count ?? 0) / PAGE_SIZE) - 1);
+      if (countResult.error) throw countResult.error;
+
+      const recordedTotal = countResult.count ?? 0;
+      const combinedTotal = recordedTotal + estimates.length;
+      const lastPage = Math.max(0, Math.ceil(combinedTotal / PAGE_SIZE) - 1);
       if (page > lastPage) {
         setHasLoaded(false);
         setPage(lastPage);
         return;
       }
-      setReadings(r.data ?? []); setTotal(r.count ?? 0); setPonds(p.data ?? []);
+
+      const pageStart = page * PAGE_SIZE;
+      const pageEnd = pageStart + PAGE_SIZE;
+      const estimatesOnPage = dateOrder === "oldest"
+        ? estimates.slice(pageStart, pageEnd)
+        : estimates.slice(Math.max(0, pageStart - recordedTotal), Math.max(0, pageEnd - recordedTotal));
+      const recordedStart = dateOrder === "oldest"
+        ? Math.max(0, pageStart - estimates.length)
+        : Math.min(pageStart, recordedTotal);
+      const recordedEnd = dateOrder === "oldest"
+        ? Math.min(recordedTotal, pageEnd - estimates.length)
+        : Math.min(recordedTotal, pageEnd);
+
+      let recordedReadings: ReadingWithPond[] = [];
+      if (recordedEnd > recordedStart) {
+        let readingsQuery = supabase.from("sensor_readings").select("*, pond_profiles(name)");
+        if (startIso && endIso) readingsQuery = readingsQuery.gte("recorded_at", startIso).lt("recorded_at", endIso);
+        const { data, error } = await readingsQuery
+          .order("recorded_at", { ascending: dateOrder === "oldest" })
+          .order("id", { ascending: dateOrder === "oldest" })
+          .range(recordedStart, recordedEnd - 1);
+        if (currentRequest !== requestId.current) return;
+        if (error) throw error;
+        recordedReadings = (data ?? []) as ReadingWithPond[];
+      }
+
+      const estimatedRows: ReadingWithPond[] = estimatesOnPage.map(reading => ({
+        id: reading.id,
+        recorded_at: reading.recorded_at,
+        do_mg_l: reading.do_mg_l,
+        ph: reading.ph,
+        temperature_c: reading.temperature_c,
+        turbidity_ntu: reading.turbidity_ntu,
+        pond_profiles: { name: reading.pond_name },
+        source: "research-estimate",
+      }));
+      const pageReadings = [...recordedReadings, ...estimatedRows].sort((a, b) => {
+        const direction = dateOrder === "oldest" ? 1 : -1;
+        return direction * (a.recorded_at.localeCompare(b.recorded_at) || a.id.localeCompare(b.id));
+      });
+      setReadings(pageReadings); setTotal(combinedTotal); setPonds(p.data ?? []);
       setHasLoaded(true);
     } catch (error) {
       if (currentRequest !== requestId.current) return;
@@ -210,9 +241,14 @@ const Sensors = () => {
                       <time dateTime={reading.recorded_at} className="font-semibold">{format(new Date(reading.recorded_at), "MMM d, yyyy")}</time>
                       <div className="mt-0.5 text-xs text-muted-foreground">{format(new Date(reading.recorded_at), "HH:mm")}</div>
                     </div>
-                    <Badge variant="outline" className="max-w-[55%] truncate bg-muted/40 text-muted-foreground">
-                      {reading.pond_profiles?.name ?? "Pond unavailable"}
-                    </Badge>
+                    <div className="flex min-w-0 max-w-[55%] flex-col items-end gap-1">
+                      <Badge variant="outline" title={reading.pond_profiles?.name ?? "Pond unavailable"} className="max-w-full bg-muted/40 text-muted-foreground">
+                        <span className="block max-w-[4rem] truncate whitespace-nowrap">
+                        {reading.pond_profiles?.name ?? "Pond unavailable"}
+                        </span>
+                      </Badge>
+                      {reading.source === "research-estimate" && <Badge variant="outline" className="h-4 w-fit shrink-0 whitespace-nowrap border-cyan-600/30 bg-cyan-500/10 px-1 py-0 text-[10px] leading-3 text-cyan-800 dark:text-cyan-200">Research estimate</Badge>}
+                    </div>
                   </div>
                   <dl className="mt-4 grid grid-cols-2 gap-2">
                     {[
@@ -259,7 +295,14 @@ const Sensors = () => {
                       <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-muted-foreground">
                         <time dateTime={reading.recorded_at}>{format(new Date(reading.recorded_at), "MMM d, yyyy · HH:mm")}</time>
                       </td>
-                      <td className="px-4 py-3 font-medium">{reading.pond_profiles?.name ?? "Pond unavailable"}</td>
+                      <td className="min-w-0 px-4 py-3 font-medium">
+                        <div className="flex min-w-0 flex-col items-start gap-1">
+                          <span title={reading.pond_profiles?.name ?? "Pond unavailable"} className="block max-w-[4rem] truncate whitespace-nowrap">
+                            {reading.pond_profiles?.name ?? "Pond unavailable"}
+                          </span>
+                          {reading.source === "research-estimate" && <Badge variant="outline" className="h-4 w-fit shrink-0 whitespace-nowrap border-cyan-600/30 bg-cyan-500/10 px-1 py-0 text-[10px] leading-3 text-cyan-800 dark:text-cyan-200">Research estimate</Badge>}
+                        </div>
+                      </td>
                       <td className="px-4 py-3 text-right font-mono tabular-nums">{reading.do_mg_l?.toFixed(2) ?? "—"}</td>
                       <td className="px-4 py-3 text-right font-mono tabular-nums">{reading.ph?.toFixed(2) ?? "—"}</td>
                       <td className="px-4 py-3 text-right font-mono tabular-nums">{reading.temperature_c == null ? "—" : `${reading.temperature_c.toFixed(2)} °C`}</td>

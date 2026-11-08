@@ -1,0 +1,17 @@
+source_cohort,days_since_stocking,avg_weight_g,avg_length_cm,source
+FAO-SP1,7,0.03405,1.733,FAO Pedini 1976 Table 1
+FAO-SP1,14,0.0767,2.25,FAO Pedini 1976 Table 1
+FAO-SP1,21,0.11887,2.58,FAO Pedini 1976 Table 1
+FAO-SP1,28,0.14176,2.574,FAO Pedini 1976 Table 1
+FAO-SP2,7,0.036,1.84,FAO Pedini 1976 Table 1
+FAO-SP2,14,0.09839,2.408,FAO Pedini 1976 Table 1
+FAO-SP2,21,0.1069,2.46,FAO Pedini 1976 Table 1
+FAO-SP2,28,0.13956,2.624,FAO Pedini 1976 Table 1
+FAO-SP3,7,0.046,1.96,FAO Pedini 1976 Table 1
+FAO-SP3,14,0.09043,2.383,FAO Pedini 1976 Table 1
+FAO-SP3,21,0.1172,2.505,FAO Pedini 1976 Table 1
+FAO-SP3,28,0.33028,3.407,FAO Pedini 1976 Table 1
+FAO-SP4,7,0.046,1.95,FAO Pedini 1976 Table 1
+FAO-SP4,14,0.07733,2.233,FAO Pedini 1976 Table 1
+FAO-SP4,21,0.287,3.215,FAO Pedini 1976 Table 1
+FAO-SP4,28,0.82272,4.692,FAO Pedini 1976 Table 1

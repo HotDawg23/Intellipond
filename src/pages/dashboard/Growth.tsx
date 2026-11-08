@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import { ArrowUpRight, Fish, Ruler, Weight } from "lucide-react";
 import { Line, LineChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { AppShell } from "@/components/AppShell";
+import { BatchMortalityRecords } from "@/components/BatchMortalityRecords";
 import { AnimatedResults } from "@/components/AnimatedResults";
 import { EmptyState, PageHeader } from "@/components/Common";
 import { Badge } from "@/components/ui/badge";
@@ -130,6 +131,7 @@ const Growth = () => {
   const lengthBaseline = selectedBatch && latestGrowthBaseline(batchRecords, selectedBatch.id, "avg_length_cm", selectedBatch.stocking_date, selectedBatch.initial_length_cm);
   const density = selectedBatch && formatStockingDensity(selectedBatch.stocked_fish_count, selectedBatch.pond_profiles?.area_sqm);
   const validatedOnBfar = model?.seven_day_validation.status === "validated";
+  const usesLinearRegression = model?.model_kind === "linear_regression";
 
   return (
     <AppShell>
@@ -186,10 +188,12 @@ const Growth = () => {
             <details className="rounded-xl bg-muted/40 p-4 text-sm">
               <summary className="cursor-pointer font-medium">About this estimate and batch</summary>
               <div className="mt-3 space-y-2 text-muted-foreground">
-                <p>This estimate starts from the latest recorded value for each measure. Its reference range shows spread in observed growth rates, not a confidence interval or a promise of accuracy.</p>
+                <p>This estimate starts from the latest recorded value for each measure. {usesLinearRegression
+                  ? "It uses linear regression trained on published milkfish growth measurements. Held-out tests were mixed, so this is a research estimate rather than a guaranteed forecast."
+                  : "Its reference range shows spread in observed growth rates, not a confidence interval or a promise of accuracy."}</p>
                 <p>{validatedOnBfar ? "The model passed the held-out BFAR comparison for weight and length." : "Seven-day accuracy has not been validated on BFAR batches."}</p>
                 <p>{selectedBatch.stocked_fish_count?.toLocaleString() ?? "No"} fish recorded at stocking · initial density {density ?? "unavailable"}. Density uses the pond area and stocked count, not surviving fish.</p>
-                {model?.sources[0] && <a className="inline-flex items-center gap-1 text-primary underline-offset-4 hover:underline" href={model.sources[0].url} target="_blank" rel="noreferrer">Source: {model.sources[0].publisher} {model.sources[0].year}<ArrowUpRight className="h-3.5 w-3.5" /></a>}
+                {model?.sources.map(source => <a key={source.url} className="flex w-fit items-center gap-1 text-primary underline-offset-4 hover:underline" href={source.url} target="_blank" rel="noreferrer">Source: {source.publisher} {source.year}<ArrowUpRight className="h-3.5 w-3.5" /></a>)}
               </div>
             </details>
           </Card> : <Card className="p-5 sm:p-6">
@@ -208,6 +212,7 @@ const Growth = () => {
           </section>
           </div>
           </AnimatedResults>
+          <BatchMortalityRecords batches={[selectedBatch]} canEdit={false} />
         </div>
       )}
     </AppShell>
@@ -225,7 +230,7 @@ function GrowthMetric({ label, unit, icon: Icon, baseline, metricModel, horizonD
       {estimate && window.targetDate ? <div className="mt-4 rounded-xl border border-primary/15 bg-primary/5 p-4">
         <p className="text-sm font-medium text-primary">Estimate for {formatDate(window.targetDate)}</p>
         <p className="mt-2 tabular-nums tracking-tight"><span className="font-bitcount-grid-single text-3xl font-normal sm:text-4xl">{estimate.expected.toFixed(2)}</span> <span className="text-lg font-normal">{unit}</span></p>
-        <p className="mt-2 text-xs text-muted-foreground">Reference range: {estimate.low.toFixed(2)}–{estimate.high.toFixed(2)} {unit}</p>
+        {estimate.low != null && estimate.high != null && <p className="mt-2 text-xs text-muted-foreground">Reference range: {estimate.low.toFixed(2)}–{estimate.high.toFixed(2)} {unit}</p>}
       </div> : <p className="mt-4 rounded-lg bg-muted/60 p-3 text-sm text-muted-foreground" role="status">
         {!metricModel ? "Estimate unavailable; the recorded value is still shown." : window.ageDays != null && window.ageDays > horizonDays ? "New measurement needed for a forward estimate." : "Check the measurement date before forecasting."}
       </p>}

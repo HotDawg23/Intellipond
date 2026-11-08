@@ -10,7 +10,6 @@ import { toast } from "sonner";
 import { ArrowLeft, LoaderCircle } from "lucide-react";
 import authBackgroundImg from "@/assets/auth-dashboard-bg.png";
 import BrandMark from "@/components/BrandMark";
-import { ThemeControl } from "@/components/ThemeControl";
 
 const Auth = () => {
   const nav = useNavigate();
@@ -84,12 +83,9 @@ const Auth = () => {
             <BrandMark className="h-9 w-9 rounded-xl" />
             <span className="font-semibold">IntelliPond</span>
           </div>
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <h1 className="text-2xl font-semibold">Operator Access</h1>
-              <p className="text-sm text-muted-foreground mt-1">Sign in to your monitoring console.</p>
-            </div>
-            <ThemeControl iconOnly className="border border-border bg-card text-foreground hover:bg-accent hover:text-accent-foreground" />
+          <div>
+            <h1 className="text-2xl font-semibold">Operator Access</h1>
+            <p className="text-sm text-muted-foreground mt-1">Sign in to your monitoring console.</p>
           </div>
           <Tabs defaultValue={initialTab} className="mt-6">
             <TabsList className="grid grid-cols-2 w-full"><TabsTrigger value="signin">Sign in</TabsTrigger><TabsTrigger value="signup">Create account</TabsTrigger></TabsList>

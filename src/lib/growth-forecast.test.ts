@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { growthForecastWindow, latestGrowthBaseline, type GrowthObservation } from "@/lib/growth-forecast";
+import { estimateGrowth, growthForecastWindow, latestGrowthBaseline, type GrowthObservation } from "@/lib/growth-forecast";
 
 const records: GrowthObservation[] = [
   { fish_batch_id: "a", recorded_at: "2026-10-18T00:00:00Z", avg_weight_g: 12, avg_length_cm: null },
@@ -8,6 +8,12 @@ const records: GrowthObservation[] = [
 ];
 
 describe("growth forecast baselines", () => {
+  it("uses learned linear regression coefficients for the new estimate", () => {
+    const estimate = estimateGrowth(10, { intercept: 0.01, slope: 0 }, 7);
+    expect(estimate?.expected).toBeCloseTo(10 * Math.exp(0.07));
+    expect(estimate?.low).toBeUndefined();
+  });
+
   it("uses the latest measurement of each metric from the selected batch", () => {
     expect(latestGrowthBaseline(records, "a", "avg_weight_g", "2026-10-10", 4)).toEqual({ value: 12, date: "2026-10-18", source: "sample" });
     expect(latestGrowthBaseline(records, "a", "avg_length_cm", "2026-10-10", 3)).toEqual({ value: 6, date: "2026-10-21", source: "sample" });

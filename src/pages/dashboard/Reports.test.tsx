@@ -1,24 +1,27 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import Reports from "@/pages/dashboard/Reports";
 import ReportDetail from "@/pages/ReportDetail";
 import type { Report } from "@/lib/report-snapshot";
+import type { BatchWaterQualityReference } from "@/lib/batch-water-quality-reference";
 
-const state = vi.hoisted(() => ({ visibleReport: null as Report | null }));
+const state = vi.hoisted(() => ({ visibleReport: null as Report | null, reference: null as BatchWaterQualityReference | null }));
 
 vi.mock("@/components/AppShell", () => ({ AppShell: ({ children }: { children: ReactNode }) => <div>{children}</div> }));
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
-    from: () => {
+    from: (table: string) => {
       const query = {
         select() { return query; },
         order() { return query; },
         eq() { return query; },
-        async maybeSingle() { return { data: state.visibleReport, error: null }; },
+        async maybeSingle() {
+          return { data: table === "batch_water_quality_references" ? state.reference : state.visibleReport, error: null };
+        },
         then(resolve: (value: unknown) => void) {
-          resolve({ data: state.visibleReport ? [state.visibleReport] : [], error: null });
+          resolve({ data: table === "reports" && state.visibleReport ? [state.visibleReport] : [], error: null });
         },
       };
       return query;
@@ -81,7 +84,7 @@ const reportWithAlerts = (): Report => ({
 } as Report);
 
 describe("Operator reports", () => {
-  beforeEach(() => { state.visibleReport = sharedReport; });
+  beforeEach(() => { state.visibleReport = sharedReport; state.reference = null; });
 
   it("lists shared reports without creation or raw exports", async () => {
     render(<MemoryRouter><Reports /></MemoryRouter>);
@@ -101,10 +104,70 @@ describe("Operator reports", () => {
     expect(await screen.findByRole("heading", { name: "Weekly pond summary" })).toBeVisible();
     expect(screen.getByText("Period: Oct 20, 2026 to Oct 27, 2026")).toBeVisible();
     expect(screen.getByText("Checked the aerator.")).toBeVisible();
-    expect(screen.getByText("No alerts were raised in this period.")).toBeVisible();
+    expect(screen.getByText("No recorded alerts were raised in this period.")).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Print or save PDF" }));
     expect(print).toHaveBeenCalledOnce();
     print.mockRestore();
+  });
+
+  it("shows cited research values without empty fields or zero counts", async () => {
+    const emptyMetric = { count: 0, average: null, min: null, max: null };
+    state.visibleReport = {
+      ...sharedReport,
+      period_start: "2025-10-17",
+      period_end: "2025-11-17",
+      report_data: {
+        ...(sharedReport.report_data as object),
+        pond_name: "BFAR 2025 Pond 1 (historical)",
+        batch_name: "BFAR Pond 1 Second Cycle 2025",
+        readings: {
+          count: 0, first_at: null, last_at: null, latest: null,
+          do_mg_l: emptyMetric, ph: emptyMetric, temperature_c: emptyMetric, turbidity_ntu: emptyMetric,
+        },
+        growth: { count: 3, first: null, latest: null, weight_change_g: null, length_change_cm: null },
+      },
+    } as Report;
+    state.reference = {
+      fish_batch_id: "batch-1",
+      do_mg_l: 5.9,
+      ph: 8.38,
+      temperature_c: 29.6,
+      turbidity_ntu: 27.84,
+      source_title: "Milkfish pond study",
+      source_url: "https://example.com/study",
+      reference_note: "Published context values, not batch measurements.",
+    };
+
+    render(
+      <MemoryRouter initialEntries={["/dashboard/reports/report-1"]}>
+        <Routes><Route path="/dashboard/reports/:id" element={<ReportDetail />} /></Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByText("Recorded sensor values with clearly marked research estimates where readings are unavailable.")).toBeVisible();
+    expect(screen.queryByRole("heading", { name: "Beta sample readings" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Beta sample alerts" })).not.toBeInTheDocument();
+    const waterQualityCard = screen.getByRole("heading", { name: "Water quality" }).parentElement?.parentElement;
+    expect(waterQualityCard).not.toBeNull();
+    const waterQuality = within(waterQualityCard as HTMLElement);
+    expect(screen.getByText("Sensor readings").parentElement).toHaveTextContent("Research estimate5");
+    expect(screen.getByText("Alerts raised").parentElement).toHaveTextContent("0");
+    expect(screen.getByText("Growth measurements").parentElement).toHaveTextContent("3");
+    expect(screen.queryByText(/No sensor readings were recorded/)).not.toBeInTheDocument();
+    expect(screen.getAllByText("5.90 mg/L")).toHaveLength(2);
+    expect(screen.getAllByText("Research estimate").length).toBeGreaterThan(0);
+    expect(screen.getByText("Research-estimate values are included in the water quality section and are separate from recorded readings.")).toBeVisible();
+    expect(screen.getAllByText("5 estimates").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("5.60 mg/L").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("6.10 mg/L").length).toBeGreaterThan(0);
+    expect(screen.queryByText("0 samples")).not.toBeInTheDocument();
+    expect(waterQuality.getAllByText("Latest").length).toBeGreaterThan(0);
+    expect(waterQuality.getAllByText("Minimum").length).toBeGreaterThan(0);
+    expect(waterQuality.getAllByText("Maximum").length).toBeGreaterThan(0);
+    expect(screen.getByRole("link", { name: "Milkfish pond study" })).toHaveAttribute("href", "https://example.com/study");
+    expect(screen.getByText(/contextual research references and are kept separate from measured sensor history/)).toBeVisible();
+    expect(screen.getByText("No recorded alerts were raised in this period.")).toBeVisible();
+    expect(screen.queryByText(/0 critical|0 warning|0 still active/)).not.toBeInTheDocument();
   });
 
   it("pages two alerts on screen while keeping every saved alert available for print", async () => {
