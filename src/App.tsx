@@ -1,6 +1,7 @@
+import { initialAuthRecoveryCallback, readAuthRecoveryCallbackState } from "@/lib/auth-recovery-callback";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
-import { lazy, Suspense } from "react";
+import { BrowserRouter, Route, Routes, useNavigate } from "react-router-dom";
+import { lazy, Suspense, useLayoutEffect } from "react";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -8,6 +9,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { AlertNotifications } from "@/components/AlertNotifications";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ThemeProvider } from "next-themes";
+import { supabase } from "@/integrations/supabase/client";
 import Index from "./pages/Index";
 
 const Auth = lazy(() => import("./pages/Auth"));
@@ -31,6 +33,42 @@ const Settings = lazy(() => import("./pages/admin/Settings"));
 
 const queryClient = new QueryClient();
 
+const AuthRecoveryRedirect = () => {
+  const navigate = useNavigate();
+
+  useLayoutEffect(() => {
+    const navigateToResetPassword = () => {
+      if (window.location.pathname === "/reset-password") return;
+      // Remove callback data from the address bar rather than carrying tokens
+      // into the app route.
+      navigate("/reset-password", { replace: true });
+    };
+
+    const currentCallback = readAuthRecoveryCallbackState(window.location.href);
+    const isRecoveryLink = initialAuthRecoveryCallback.isRecovery || currentCallback.isRecovery;
+    const isExpiredRecoveryLink = initialAuthRecoveryCallback.isExpired || currentCallback.isExpired;
+
+    if (isExpiredRecoveryLink) navigateToResetPassword();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY") navigateToResetPassword();
+    });
+
+    // Wait for Supabase to process the initial URL before removing its hash.
+    // The event may have fired before this component subscribed, so also check
+    // for the resulting session after initialization completes.
+    if (isRecoveryLink) {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session) navigateToResetPassword();
+      });
+    }
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
+
+  return null;
+};
+
 const App = () => (
   <ThemeProvider attribute="class" defaultTheme="system" enableSystem storageKey="intellipond-theme">
     <QueryClientProvider client={queryClient}>
@@ -38,6 +76,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <AuthRecoveryRedirect />
           <AuthProvider>
             <AlertNotifications />
             <Suspense
