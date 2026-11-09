@@ -168,7 +168,8 @@ describe("Operator reports", () => {
     const waterQualityCard = screen.getByRole("heading", { name: "Water quality" }).parentElement?.parentElement;
     expect(waterQualityCard).not.toBeNull();
     const waterQuality = within(waterQualityCard as HTMLElement);
-    expect(screen.getByText("Sensor readings").parentElement).toHaveTextContent("Research estimate5");
+    expect(screen.getByText("Sensor readings").parentElement).toHaveTextContent("Sensor readings5");
+    expect(screen.getByText("Sensor readings").parentElement).not.toHaveTextContent("Research estimate");
     expect(screen.getByText("Alerts raised").parentElement).toHaveTextContent("0");
     expect(screen.getByText("Growth measurements").parentElement).toHaveTextContent("3");
     expect(screen.queryByText(/No sensor readings were recorded/)).not.toBeInTheDocument();

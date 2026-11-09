@@ -96,11 +96,10 @@ const ReportDetail = ({ admin = false }: { admin?: boolean }) => {
     {
       label: "Sensor readings",
       count: snapshot.readings.count > 0 ? snapshot.readings.count : researchReadings.length,
-      isResearchEstimate: snapshot.readings.count === 0 && researchReadings.length > 0,
     },
-    { label: "Alerts raised", count: snapshot.alerts.count, isResearchEstimate: false },
-    snapshot.growth.count > 0 ? { label: "Growth measurements", count: snapshot.growth.count, isResearchEstimate: false } : null,
-  ].filter((item): item is { label: string; count: number; isResearchEstimate: boolean } => item !== null) : [];
+    { label: "Alerts raised", count: snapshot.alerts.count },
+    snapshot.growth.count > 0 ? { label: "Growth measurements", count: snapshot.growth.count } : null,
+  ].filter((item): item is { label: string; count: number } => item !== null) : [];
   const alertSummary = snapshot ? [
     snapshot.alerts.critical > 0 ? `${snapshot.alerts.critical} critical` : null,
     snapshot.alerts.warning > 0 ? `${snapshot.alerts.warning} warning` : null,
@@ -155,7 +154,6 @@ const ReportDetail = ({ admin = false }: { admin?: boolean }) => {
                     <div key={item.label}>
                       <p className="text-muted-foreground">
                         {item.label}
-                        {item.isResearchEstimate && <span className="mt-0.5 block text-[11px]">Research estimate</span>}
                       </p>
                       <p className="font-sans text-2xl font-normal tabular-nums">{item.count}</p>
                     </div>

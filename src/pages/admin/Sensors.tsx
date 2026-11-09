@@ -13,6 +13,7 @@ import { ArrowLeft, ArrowRight, Database, Plus, Waves } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { DatePicker } from "@/components/DatePicker";
 import type { Tables } from "@/integrations/supabase/types";
 import { getResearchEstimateReadings } from "@/lib/research-estimate-readings";
 
@@ -196,10 +197,10 @@ const Sensors = () => {
         <div className="flex flex-col gap-3 border-b border-border/70 p-4 sm:flex-row sm:items-end sm:p-5">
           <div className="w-full sm:w-52">
             <Label htmlFor="reading-date" className="mb-1.5 block text-xs text-muted-foreground">Date</Label>
-            <Input id="reading-date" type="date" value={selectedDate} onChange={event => {
+            <DatePicker id="reading-date" value={selectedDate} placeholder="All dates" onChange={value => {
               setHasLoaded(false);
               setPage(0);
-              setSelectedDate(event.target.value);
+              setSelectedDate(value);
             }} />
           </div>
           <div className="w-full sm:w-44">

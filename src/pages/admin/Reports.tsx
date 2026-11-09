@@ -3,6 +3,7 @@ import { format } from "date-fns";
 import { Activity, Download, Plus, TrendingUp } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/AppShell";
+import { DatePicker } from "@/components/DatePicker";
 import { LoadError, LoadingState, PageHeader } from "@/components/Common";
 import { ReportList } from "@/components/ReportList";
 import { Button } from "@/components/ui/button";
@@ -224,8 +225,8 @@ const Reports = () => {
                   <p className="text-xs text-muted-foreground">Choose a batch to compare growth within one stocking cycle.</p>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="space-y-1.5"><Label htmlFor="report-start">From</Label><Input id="report-start" type="date" required value={form.start} onChange={event => setForm({ ...form, start: event.target.value })} /></div>
-                  <div className="space-y-1.5"><Label htmlFor="report-end">Through</Label><Input id="report-end" type="date" required value={form.end} onChange={event => setForm({ ...form, end: event.target.value })} /></div>
+                  <div className="space-y-1.5"><Label htmlFor="report-start">From</Label><DatePicker id="report-start" required value={form.start} onChange={start => setForm({ ...form, start })} /></div>
+                  <div className="space-y-1.5"><Label htmlFor="report-end">Through</Label><DatePicker id="report-end" required value={form.end} onChange={end => setForm({ ...form, end })} /></div>
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="report-description">Notes and actions taken</Label>

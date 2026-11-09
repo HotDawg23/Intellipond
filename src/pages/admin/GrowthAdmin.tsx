@@ -3,6 +3,7 @@ import { format } from "date-fns";
 import { Archive, ChevronDown, Fish, Plus } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { AnimatedResults } from "@/components/AnimatedResults";
+import { DatePicker } from "@/components/DatePicker";
 import { EmptyState, PageHeader, LoadingState, LoadError } from "@/components/Common";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -283,7 +284,7 @@ const GrowthAdmin = () => {
                     </Select>
                   </div>
                   <div><Label>Batch name</Label><Input required value={batchForm.batch_name} onChange={event => setBatchForm({ ...batchForm, batch_name: event.target.value })} placeholder="Example: BFAR October 2026" /></div>
-                  <div><Label>Stocking date</Label><Input required type="date" value={batchForm.stocking_date} onChange={event => setBatchForm({ ...batchForm, stocking_date: event.target.value })} /></div>
+                  <div className="space-y-1.5"><Label htmlFor="batch-stocking-date">Stocking date</Label><DatePicker id="batch-stocking-date" required value={batchForm.stocking_date} onChange={value => setBatchForm({ ...batchForm, stocking_date: value })} /></div>
                   <div>
                     <Label htmlFor="new-batch-stocked-fish-count">Number of fish stocked (optional)</Label>
                     <Input
@@ -327,7 +328,7 @@ const GrowthAdmin = () => {
                       <SelectContent>{activeBatches.map(batch => <SelectItem key={batch.id} value={batch.id}>{batch.batch_name} · {batch.pond_profiles?.name ?? "Pond"}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
-                  <div><Label>Measurement date</Label><Input required type="date" max={localDate()} value={recordForm.recorded_at} onChange={event => setRecordForm({ ...recordForm, recorded_at: event.target.value })} /></div>
+                  <div className="space-y-1.5"><Label htmlFor="growth-measurement-date">Measurement date</Label><DatePicker id="growth-measurement-date" required max={localDate()} value={recordForm.recorded_at} onChange={value => setRecordForm({ ...recordForm, recorded_at: value })} /></div>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <div><Label>Average weight (g)</Label><Input min="0.01" step="0.01" type="number" value={recordForm.avg_weight_g} onChange={event => setRecordForm({ ...recordForm, avg_weight_g: event.target.value })} /></div>
                     <div><Label>Average length (cm)</Label><Input min="0.01" step="0.01" type="number" value={recordForm.avg_length_cm} onChange={event => setRecordForm({ ...recordForm, avg_length_cm: event.target.value })} /></div>
@@ -406,7 +407,7 @@ const GrowthAdmin = () => {
           <form onSubmit={saveHarvest} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="harvest-date">Harvest date</Label>
-              <Input id="harvest-date" type="date" required min={harvestBatch?.stocking_date} max={localDate()} value={harvestDate} onChange={event => setHarvestDate(event.target.value)} />
+              <DatePicker id="harvest-date" required min={harvestBatch?.stocking_date} max={localDate()} value={harvestDate} onChange={setHarvestDate} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="harvest-count">Fish counted at harvest (yield)</Label>

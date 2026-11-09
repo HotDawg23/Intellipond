@@ -1,4 +1,4 @@
-import { AlertTriangle, Calendar, Siren } from "lucide-react";
+import { AlertTriangle, Siren } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -75,9 +75,8 @@ const AlertListFilters = ({
           {ageView === "recent" && <div className="space-y-1">
             <Label htmlFor="alert-date-range" className="text-xs font-medium text-muted-foreground">Date raised</Label>
             <Select value={dateRange} onValueChange={value => onDateRangeChange(value as AlertDateRangeFilter)}>
-              <SelectTrigger id="alert-date-range" className="h-10 w-full rounded-lg bg-background sm:w-[170px]">
-                <span className="mr-2 text-muted-foreground"><Calendar className="h-4 w-4" aria-hidden="true" /></span>
-                <SelectValue />
+              <SelectTrigger id="alert-date-range" className="h-10 w-full rounded-lg bg-background text-left sm:w-[170px]">
+                <SelectValue className="text-left" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Any recent date</SelectItem>
