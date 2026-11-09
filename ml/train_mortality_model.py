@@ -72,6 +72,6 @@ def export_model(source: Path, destination: Path):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("csv", type=Path)
-    parser.add_argument("--output", type=Path, default=Path("public/mortality-model.json"))
+    parser.add_argument("--output", type=Path, default=Path("ml/models/mortality_research_candidate.json"))
     arguments = parser.parse_args()
     export_model(arguments.csv, arguments.output)

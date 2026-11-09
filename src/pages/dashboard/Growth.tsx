@@ -5,7 +5,6 @@ import { format } from "date-fns";
 import { ArrowUpRight, Fish, Ruler, Weight } from "lucide-react";
 import { Line, LineChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { AppShell } from "@/components/AppShell";
-import { BatchMortalityRecords } from "@/components/BatchMortalityRecords";
 import { AnimatedResults } from "@/components/AnimatedResults";
 import { EmptyState, PageHeader } from "@/components/Common";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +17,7 @@ import {
   type GrowthBaseline, type GrowthMetricModel, type GrowthObservation, type GrowthReferenceModel,
 } from "@/lib/growth-forecast";
 import { formatStockingDensity } from "@/lib/stocking-density";
+import { harvestResult } from "@/lib/harvest";
 import { useAuth } from "@/contexts/AuthContext";
 
 type FishBatch = {
@@ -26,6 +26,8 @@ type FishBatch = {
   batch_name: string;
   stocking_date: string;
   stocked_fish_count: number | null;
+  harvest_date: string | null;
+  harvested_fish_count: number | null;
   initial_weight_g: number | null;
   initial_length_cm: number | null;
   is_active: boolean;
@@ -97,7 +99,7 @@ const Growth = () => {
         .select("id,fish_batch_id,pond_id,age_days,avg_weight_g,avg_length_cm,recorded_at,growth_status")
         .order("recorded_at", { ascending: true }),
       supabase.from("fish_batches")
-        .select("id,pond_id,batch_name,stocking_date,stocked_fish_count,initial_weight_g,initial_length_cm,is_active,pond_profiles(name,area_sqm)")
+        .select("id,pond_id,batch_name,stocking_date,stocked_fish_count,harvest_date,harvested_fish_count,initial_weight_g,initial_length_cm,is_active,pond_profiles(name,area_sqm)")
         .order("is_active", { ascending: false })
         .order("stocking_date", { ascending: false }),
       fetch(`${import.meta.env.BASE_URL}growth-model.json`).then(async response => {
@@ -212,7 +214,20 @@ const Growth = () => {
           </section>
           </div>
           </AnimatedResults>
-          <BatchMortalityRecords batches={[selectedBatch]} canEdit={false} />
+          {!selectedBatch.is_active && <section aria-labelledby="harvest-heading">
+            <Card className="p-5 sm:p-6">
+              <h2 id="harvest-heading" className="text-lg font-semibold">Final harvest</h2>
+              {selectedBatch.harvest_date && selectedBatch.harvested_fish_count != null ? <>
+                <p className="mt-1 text-sm text-muted-foreground">Counted {formatDate(selectedBatch.harvest_date)}</p>
+                <div className="mt-4 grid gap-4 text-sm sm:grid-cols-3">
+                  <div><p className="text-muted-foreground">Yield (fish counted)</p><p className="text-xl font-medium tabular-nums">{harvestResult(selectedBatch).yieldCount?.toLocaleString()}</p></div>
+                  <div><p className="text-muted-foreground">Calculated mortality</p><p className="text-xl font-medium tabular-nums">{harvestResult(selectedBatch).mortalityCount?.toLocaleString() ?? "Unavailable"}</p></div>
+                  <div><p className="text-muted-foreground">Mortality rate</p><p className="text-xl font-medium tabular-nums">{harvestResult(selectedBatch).mortalityRate == null ? "Unavailable" : `${harvestResult(selectedBatch).mortalityRate?.toFixed(2)}%`}</p></div>
+                </div>
+                {selectedBatch.stocked_fish_count == null && <p className="mt-3 text-xs text-muted-foreground">A stocking count is needed to calculate mortality.</p>}
+              </> : <p className="mt-2 text-sm text-muted-foreground">Harvest count not recorded.</p>}
+            </Card>
+          </section>}
         </div>
       )}
     </AppShell>

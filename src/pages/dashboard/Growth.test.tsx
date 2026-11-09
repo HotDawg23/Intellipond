@@ -41,6 +41,20 @@ const model = {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("Growth Monitoring", () => {
+  it("shows the final harvest to operators without edit controls", async () => {
+    state.data = {
+      bangus_growth_records: [],
+      fish_batches: [{ id: "batch-a", pond_id: "pond-a", batch_name: "Harvested batch", stocking_date: "2026-10-01", stocked_fish_count: 1000, harvest_date: "2026-11-01", harvested_fish_count: 900, initial_weight_g: 2, initial_length_cm: 2, is_active: false, pond_profiles: { name: "Pond A", area_sqm: 100 } }],
+    };
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => model }));
+    render(<Growth />);
+    expect(await screen.findByRole("heading", { name: "Final harvest" })).toBeVisible();
+    expect(screen.getByText("900")).toBeVisible();
+    expect(screen.getByText("100")).toBeVisible();
+    expect(screen.getByText("10.00%")).toBeVisible();
+    expect(screen.queryByRole("button", { name: /harvest|close batch/i })).not.toBeInTheDocument();
+  });
+
   it("keeps actual measurements visible if the reference model fails to load", async () => {
     const today = new Date().toISOString().slice(0, 10);
     state.data = {
@@ -53,7 +67,7 @@ describe("Growth Monitoring", () => {
     await waitFor(() => expect(screen.getByText(/10\.00/)).toBeVisible());
     expect(screen.getByRole("alert")).toHaveTextContent("Growth reference model could not be loaded");
     expect(screen.getAllByRole("status")).toHaveLength(2);
-    expect(screen.getAllByText(/Estimate unavailable/)).toHaveLength(4);
+    expect(screen.getAllByText(/Estimate unavailable/)).toHaveLength(3);
   });
 
   it("shows a dated estimate for a fresh weight sample and a clear missing-length state", async () => {

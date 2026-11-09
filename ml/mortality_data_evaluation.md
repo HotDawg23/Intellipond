@@ -64,17 +64,17 @@ not Bangus ponds.
 | Logistic Regression | 28 | 1,410 | 44 | 1.9% | 38.9% |
 | Random Forest | 3 | 29 | 69 | 9.4% | 4.2% |
 
-**Model choice and limit:** the Random Forest is exported as an *experimental*
-next-visit research estimate because it gave fewer false alarms than Logistic
+**Model choice and limit:** the Random Forest was exported as an *experimental*
+next-visit research candidate because it gave fewer false alarms than Logistic
 Regression. It still misses nearly all positive reports, and its 9.4% positive
 precision means most elevated signals in the held-out test were false alarms.
-The app says "No elevated signal detected" rather than claiming no deaths will
-occur. The result never triggers a critical alert. This is a capstone research
-demonstration, **not** a validated mortality warning for Bangus or any other
+It was removed from the app's runtime and UI when the workflow changed to
+final harvest counts. This is a capstone research experiment, **not** a
+validated mortality warning for Bangus or any other
 pond. A different forecast window cannot repair the missing Bangus labels or
 the weak independent-pond results.
 
-The published browser artifact is `public/mortality-model.json`. Recreate it
+The retained research artifact is `ml/models/mortality_research_candidate.json`. It is not served by the app. Recreate it
 from the reviewed CSV with:
 
 ```sh
@@ -83,10 +83,10 @@ python ml/train_mortality_model.py path/to/water_quality.csv
 
 The exporter checks the source SHA-256, fits the same 200-tree Random Forest
 configuration used in cross-validation, and writes a deterministic version.
-The source CSV is kept outside Git. The app uses the latest **measured** DO,
-pH, and temperature plus the same-day logged death count; it does not train or
-predict from the separate historical research-reference readings. Its output
-applies to the next recorded visit, whose median gap in the source was 24 days.
+The source CSV is kept outside Git. The retired candidate used measured DO,
+pH, temperature, and same-day death counts; it never trained on the separate
+historical research-reference readings. Its target was the next recorded visit,
+whose median gap in the source was 24 days.
 
 ## What is needed before operational use
 

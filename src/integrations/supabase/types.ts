@@ -352,6 +352,8 @@ export type Database = {
         Row: {
           batch_name: string
           created_at: string
+          harvest_date: string | null
+          harvested_fish_count: number | null
           id: string
           initial_length_cm: number | null
           initial_weight_g: number | null
@@ -363,6 +365,8 @@ export type Database = {
         Insert: {
           batch_name: string
           created_at?: string
+          harvest_date?: string | null
+          harvested_fish_count?: number | null
           id?: string
           initial_length_cm?: number | null
           initial_weight_g?: number | null
@@ -374,6 +378,8 @@ export type Database = {
         Update: {
           batch_name?: string
           created_at?: string
+          harvest_date?: string | null
+          harvested_fish_count?: number | null
           id?: string
           initial_length_cm?: number | null
           initial_weight_g?: number | null

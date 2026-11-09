@@ -15,6 +15,14 @@ export type ReportSnapshot = {
   time_zone: string;
   pond_name: string;
   batch_name: string | null;
+  harvest?: {
+    batch_name: string;
+    harvest_date: string;
+    stocked_fish_count: number | null;
+    harvested_fish_count: number;
+    mortality_count: number | null;
+    mortality_rate: number | null;
+  }[];
   readings: {
     count: number;
     first_at: string | null;

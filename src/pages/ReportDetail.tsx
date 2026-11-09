@@ -179,6 +179,19 @@ const ReportDetail = ({ admin = false }: { admin?: boolean }) => {
             {notesCard}
           </div>
 
+          {snapshot.harvest && snapshot.harvest.length > 0 && <Card className="p-5 sm:p-6">
+            <h2 className="text-lg font-semibold">Final harvest</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Fish counted at harvest are the yield. Mortality is calculated from the stocked count.</p>
+            <div className="mt-4 divide-y divide-border">
+              {snapshot.harvest.map((item, index) => <div key={`${item.batch_name}-${item.harvest_date}-${index}`} className="grid gap-3 py-3 text-sm first:pt-0 sm:grid-cols-4">
+                <div><p className="text-muted-foreground">Batch / date</p><p>{item.batch_name}<br />{formatReportPeriod(item.harvest_date, item.harvest_date)}</p></div>
+                <div><p className="text-muted-foreground">Yield (fish)</p><p>{item.harvested_fish_count.toLocaleString()}</p></div>
+                <div><p className="text-muted-foreground">Calculated mortality</p><p>{item.mortality_count?.toLocaleString() ?? "Unavailable"}</p></div>
+                <div><p className="text-muted-foreground">Mortality rate</p><p>{item.mortality_rate == null ? "Unavailable" : `${Number(item.mortality_rate).toFixed(2)}%`}</p></div>
+              </div>)}
+            </div>
+          </Card>}
+
           <Card className="overflow-hidden">
             <div className="border-b border-border p-5 sm:px-6">
               <h2 className="text-lg font-semibold">Water quality</h2>

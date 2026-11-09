@@ -3,13 +3,12 @@ import { format } from "date-fns";
 import { Archive, ChevronDown, Fish, Plus } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { AnimatedResults } from "@/components/AnimatedResults";
-import { BatchMortalityRecords } from "@/components/BatchMortalityRecords";
 import { EmptyState, PageHeader, LoadingState, LoadError } from "@/components/Common";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -17,6 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { GrowthWaterAveragesRecord } from "@/lib/growth-records-export";
 import type { BatchWaterQualityReference } from "@/lib/batch-water-quality-reference";
 import { formatStockingDensity } from "@/lib/stocking-density";
+import { harvestResult, validateHarvest } from "@/lib/harvest";
 import { toast } from "sonner";
 
 type Pond = { id: string; name: string; area_sqm: number | null };
@@ -26,6 +26,8 @@ type FishBatch = {
   batch_name: string;
   stocking_date: string;
   stocked_fish_count: number | null;
+  harvest_date: string | null;
+  harvested_fish_count: number | null;
   initial_weight_g: number | null;
   initial_length_cm: number | null;
   is_active: boolean;
@@ -86,6 +88,10 @@ const GrowthAdmin = () => {
   const [savingStockedCount, setSavingStockedCount] = useState(false);
   const [editingBatch, setEditingBatch] = useState<FishBatch | null>(null);
   const [stockedFishCountInput, setStockedFishCountInput] = useState("");
+  const [harvestBatch, setHarvestBatch] = useState<FishBatch | null>(null);
+  const [harvestDate, setHarvestDate] = useState(localDate);
+  const [harvestCount, setHarvestCount] = useState("");
+  const [savingHarvest, setSavingHarvest] = useState(false);
   const [historyBatchId, setHistoryBatchId] = useState("all");
   const [batchFilter, setBatchFilter] = useState<BatchFilter>("active");
   const [batchForm, setBatchForm] = useState({ pond_id: "", batch_name: "", stocking_date: localDate(), stocked_fish_count: "", initial_weight_g: "", initial_length_cm: "" });
@@ -113,7 +119,7 @@ const GrowthAdmin = () => {
         .order("recorded_at", { ascending: false })
         .order("id", { ascending: false }),
       supabase.from("fish_batches")
-        .select("id,pond_id,batch_name,stocking_date,stocked_fish_count,initial_weight_g,initial_length_cm,is_active,pond_profiles(name,area_sqm)")
+        .select("id,pond_id,batch_name,stocking_date,stocked_fish_count,harvest_date,harvested_fish_count,initial_weight_g,initial_length_cm,is_active,pond_profiles(name,area_sqm)")
         .order("stocking_date", { ascending: false }),
       supabase.from("pond_profiles").select("id,name,area_sqm").order("name"),
       supabase.from("batch_water_quality_references").select("*"),
@@ -159,7 +165,6 @@ const GrowthAdmin = () => {
     if (stockedFishCount != null && (!Number.isInteger(stockedFishCount) || stockedFishCount <= 0)) {
       return toast.error("Fish stocked must be a whole number greater than zero.");
     }
-
     const { error } = await supabase.from("fish_batches").insert({
       pond_id: batchForm.pond_id,
       batch_name: batchForm.batch_name.trim(),
@@ -186,6 +191,9 @@ const GrowthAdmin = () => {
     if (stockedFishCount != null && (!Number.isInteger(stockedFishCount) || stockedFishCount <= 0)) {
       return toast.error("Fish stocked must be a whole number greater than zero.");
     }
+    if (stockedFishCount != null && editingBatch.harvested_fish_count != null && stockedFishCount < editingBatch.harvested_fish_count) {
+      return toast.error("Stocked count cannot be less than the recorded harvest count.");
+    }
 
     setSavingStockedCount(true);
     const { data, error } = await supabase.from("fish_batches")
@@ -202,10 +210,26 @@ const GrowthAdmin = () => {
     await load();
   };
 
-  const closeBatch = async (batch: FishBatch) => {
-    const { error } = await supabase.from("fish_batches").update({ is_active: false }).eq("id", batch.id);
-    if (error) return toast.error(error.message);
-    toast.success(`${batch.batch_name} closed`);
+  const openHarvest = (batch: FishBatch) => {
+    setHarvestBatch(batch);
+    setHarvestDate(batch.harvest_date ?? localDate());
+    setHarvestCount(batch.harvested_fish_count?.toString() ?? "");
+  };
+
+  const saveHarvest = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!harvestBatch) return;
+    const validationError = validateHarvest(harvestDate, harvestCount, harvestBatch, localDate());
+    if (validationError) return toast.error(validationError);
+    setSavingHarvest(true);
+    const { data, error } = await supabase.from("fish_batches")
+      .update({ harvest_date: harvestDate, harvested_fish_count: Number(harvestCount), is_active: false })
+      .eq("id", harvestBatch.id).select("id").maybeSingle();
+    setSavingHarvest(false);
+    if (error) return toast.error(`Could not save harvest: ${error.message}`);
+    if (!data) return toast.error("This fish batch could not be updated. Refresh and try again.");
+    toast.success(harvestBatch.is_active ? "Harvest recorded and batch closed" : "Harvest record updated");
+    setHarvestBatch(null);
     await load();
   };
 
@@ -373,6 +397,30 @@ const GrowthAdmin = () => {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={harvestBatch !== null} onOpenChange={open => { if (!open && !savingHarvest) setHarvestBatch(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{harvestBatch?.is_active ? "Close batch and record harvest" : "Record or correct harvest"}</DialogTitle>
+            <DialogDescription>{harvestBatch?.batch_name} · Count all fish remaining at the final harvest. This count is the yield.</DialogDescription>
+          </DialogHeader>
+          <form onSubmit={saveHarvest} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="harvest-date">Harvest date</Label>
+              <Input id="harvest-date" type="date" required min={harvestBatch?.stocking_date} max={localDate()} value={harvestDate} onChange={event => setHarvestDate(event.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="harvest-count">Fish counted at harvest (yield)</Label>
+              <Input id="harvest-count" type="number" inputMode="numeric" min="0" max={harvestBatch?.stocked_fish_count ?? undefined} step="1" required value={harvestCount} onChange={event => setHarvestCount(event.target.value)} />
+              <p className="text-xs text-muted-foreground">Stocked: {harvestBatch?.stocked_fish_count?.toLocaleString() ?? "Not recorded"}. Mortality is calculated only when the stocked count is known.</p>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setHarvestBatch(null)} disabled={savingHarvest}>Cancel</Button>
+              <Button type="submit" disabled={savingHarvest}>{savingHarvest ? "Saving..." : harvestBatch?.is_active ? "Save harvest and close" : "Save harvest"}</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       {loadError && <div className="mb-5"><LoadError message={loadError} onRetry={() => void load()} /></div>}
       {!hasLoaded ? (
         loadError ? null : <Card><LoadingState label="Loading growth records" /></Card>
@@ -406,6 +454,7 @@ const GrowthAdmin = () => {
               const latestWeight = records.find(record => record.fish_batch_id === batch.id && record.avg_weight_g != null);
               const latestLength = records.find(record => record.fish_batch_id === batch.id && record.avg_length_cm != null);
               const density = formatStockingDensity(batch.stocked_fish_count, batch.pond_profiles?.area_sqm);
+              const harvest = harvestResult(batch);
               return (
                 <Card key={batch.id} className="p-4 sm:p-5">
                   <div className="flex flex-wrap items-start justify-between gap-3">
@@ -422,6 +471,12 @@ const GrowthAdmin = () => {
                     <div><p className="text-xs text-muted-foreground">Latest weight</p><p className="font-medium">{latestWeight ? `${latestWeight.avg_weight_g} g` : "No sample"}</p></div>
                     <div><p className="text-xs text-muted-foreground">Latest length</p><p className="font-medium">{latestLength ? `${latestLength.avg_length_cm} cm` : "No sample"}</p></div>
                   </div>
+                  {!batch.is_active && <div className="mt-3 grid grid-cols-2 gap-3 border-t border-border pt-3 text-sm sm:grid-cols-4">
+                    <div><p className="text-xs text-muted-foreground">Harvest date</p><p>{batch.harvest_date ? displayDate(batch.harvest_date) : "Not recorded"}</p></div>
+                    <div><p className="text-xs text-muted-foreground">Yield (fish)</p><p>{harvest.yieldCount?.toLocaleString() ?? "Not recorded"}</p></div>
+                    <div><p className="text-xs text-muted-foreground">Calculated mortality</p><p>{harvest.mortalityCount?.toLocaleString() ?? "Unavailable"}</p></div>
+                    <div><p className="text-xs text-muted-foreground">Mortality rate</p><p>{harvest.mortalityRate == null ? "Unavailable" : `${harvest.mortalityRate.toFixed(2)}%`}</p></div>
+                  </div>}
                   <Collapsible className="mt-3 border-t border-border pt-3 text-sm">
                     <CollapsibleTrigger className="group flex w-full items-center justify-between gap-2 text-left font-medium text-primary">
                       <span>Starting measurements and details</span>
@@ -440,7 +495,7 @@ const GrowthAdmin = () => {
                     <Button variant="outline" size="sm" onClick={() => { setStockedFishCountInput(batch.stocked_fish_count?.toString() ?? ""); setEditingBatch(batch); }}>
                       {batch.stocked_fish_count == null ? "Enter fish count" : "Edit count"}
                     </Button>
-                    {batch.is_active && <Button variant="ghost" size="sm" onClick={() => void closeBatch(batch)}><Archive className="mr-2 h-4 w-4" />Close batch</Button>}
+                    <Button variant="ghost" size="sm" onClick={() => openHarvest(batch)}><Archive className="mr-2 h-4 w-4" />{batch.is_active ? "Close batch" : batch.harvest_date ? "Edit harvest" : "Record harvest"}</Button>
                   </div>
                 </Card>
               );
@@ -449,8 +504,6 @@ const GrowthAdmin = () => {
         )}
         </AnimatedResults>
       </section>
-
-      <div className="mb-6"><BatchMortalityRecords batches={batches} canEdit /></div>
 
       <section aria-labelledby="measurements-heading" className="space-y-3">
         <div className="flex flex-wrap items-end justify-between gap-3">

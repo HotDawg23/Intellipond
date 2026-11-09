@@ -105,9 +105,27 @@ describe("Operator reports", () => {
     expect(screen.getByText("Period: Oct 20, 2026 to Oct 27, 2026")).toBeVisible();
     expect(screen.getByText("Checked the aerator.")).toBeVisible();
     expect(screen.getByText("No recorded alerts were raised in this period.")).toBeVisible();
+    expect(screen.queryByRole("heading", { name: "Final harvest" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Print or save PDF" }));
     expect(print).toHaveBeenCalledOnce();
     print.mockRestore();
+  });
+
+  it("shows a saved harvest in a new report", async () => {
+    state.visibleReport = {
+      ...sharedReport,
+      report_data: { ...(sharedReport.report_data as object), harvest: [{
+        batch_name: "Batch 1", harvest_date: "2026-10-25", stocked_fish_count: 1000,
+        harvested_fish_count: 900, mortality_count: 100, mortality_rate: 10,
+      }] },
+    } as Report;
+    render(<MemoryRouter initialEntries={["/dashboard/reports/report-1"]}>
+      <Routes><Route path="/dashboard/reports/:id" element={<ReportDetail />} /></Routes>
+    </MemoryRouter>);
+    const card = (await screen.findByRole("heading", { name: "Final harvest" })).parentElement;
+    expect(card).toHaveTextContent("900");
+    expect(card).toHaveTextContent("100");
+    expect(card).toHaveTextContent("10.00%");
   });
 
   it("shows cited research values without empty fields or zero counts", async () => {

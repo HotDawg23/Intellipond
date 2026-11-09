@@ -5,6 +5,7 @@ import GrowthAdmin from "@/pages/admin/GrowthAdmin";
 
 const state = vi.hoisted(() => ({
   data: {} as Record<string, unknown[]>,
+  update: vi.fn(),
 }));
 
 vi.mock("@/components/AppShell", () => ({ AppShell: ({ children }: { children: ReactNode }) => <div>{children}</div> }));
@@ -15,6 +16,8 @@ vi.mock("@/integrations/supabase/client", () => ({
         select() { return query; },
         order() { return query; },
         eq() { return query; },
+        update(payload: unknown) { state.update(payload); return query; },
+        maybeSingle: async () => ({ data: { id: "batch-1" }, error: null }),
         limit() { return query; },
         then(resolve: (value: unknown) => void) { resolve({ data: state.data[table] ?? [], error: null }); },
       };
@@ -26,6 +29,40 @@ vi.mock("@/integrations/supabase/client", () => ({
 }));
 
 describe("Growth Records summaries", () => {
+  it("records a final count and closes a batch in one update", async () => {
+    state.update.mockClear();
+    state.data = {
+      growth_records_with_water_averages: [],
+      fish_batches: [{ id: "batch-1", pond_id: "pond-1", batch_name: "October batch", stocking_date: "2026-10-01", stocked_fish_count: 1000, harvest_date: null, harvested_fish_count: null, is_active: true, pond_profiles: { name: "BFAR", area_sqm: 100 } }],
+      pond_profiles: [{ id: "pond-1", name: "BFAR", area_sqm: 100 }],
+    };
+    render(<GrowthAdmin />);
+    fireEvent.click(await screen.findByRole("button", { name: "Close batch" }));
+    fireEvent.change(screen.getByLabelText("Harvest date"), { target: { value: "2026-11-01" } });
+    fireEvent.change(screen.getByLabelText("Fish counted at harvest (yield)"), { target: { value: "900" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save harvest and close" }));
+    await waitFor(() => expect(state.update).toHaveBeenCalledWith({ harvest_date: "2026-11-01", harvested_fish_count: 900, is_active: false }));
+  });
+
+  it("lets an admin correct a closed batch's recorded count", async () => {
+    state.update.mockClear();
+    Object.defineProperty(Element.prototype, "scrollIntoView", { configurable: true, value: vi.fn() });
+    state.data = {
+      growth_records_with_water_averages: [],
+      fish_batches: [{ id: "batch-1", pond_id: "pond-1", batch_name: "Closed batch", stocking_date: "2026-10-01", stocked_fish_count: 1000, harvest_date: "2026-11-01", harvested_fish_count: 900, is_active: false, pond_profiles: { name: "BFAR", area_sqm: 100 } }],
+      pond_profiles: [{ id: "pond-1", name: "BFAR", area_sqm: 100 }],
+    };
+    render(<GrowthAdmin />);
+    fireEvent.click(await screen.findByRole("combobox", { name: "Show batches" }));
+    fireEvent.click(await screen.findByRole("option", { name: "Closed (1)" }));
+    expect(screen.getByText("10.00%")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Edit harvest" }));
+    fireEvent.change(screen.getByLabelText("Fish counted at harvest (yield)"), { target: { value: "950" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save harvest" }));
+    await waitFor(() => expect(state.update).toHaveBeenCalledWith({ harvest_date: "2026-11-01", harvested_fish_count: 950, is_active: false }));
+  });
+
+
   it("shows sparse and complete samples while keeping details expandable", async () => {
     state.data = {
       growth_records_with_water_averages: [
