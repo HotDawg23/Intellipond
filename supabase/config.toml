@@ -1,7 +1,20 @@
 project_id = "izedbpuxvevwwkjnvspt"
 
+[auth]
+enable_signup = false
+
+[auth.email]
+enable_signup = false
+enable_confirmations = false
+
 [functions.send-reset-password-email]
 verify_jwt = false
 
 [functions.ingest-sensor-reading]
+verify_jwt = false
+
+[functions.create-operator]
+verify_jwt = false
+
+[functions.change-initial-password]
 verify_jwt = false

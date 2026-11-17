@@ -140,7 +140,7 @@ const Dashboard = () => {
                 <Waves className="h-4 w-4" /> Overall Pond Condition
               </div>
               <div className="flex items-baseline gap-4">
-                <div className="font-coolvetica text-5xl font-semibold capitalize">{dashboardStatus}</div>
+                <div className="font-coolvetica text-5xl font-normal capitalize">{dashboardStatus}</div>
                 <Badge variant="outline" className={statusColor + " border-0"}>{sensorOffline ? "No live data" : <span className="font-bitcount-grid-single">{evaluation.score}/100</span>}</Badge>
               </div>
               <p className="mt-3 text-white/90 max-w-md" role={sensorOffline ? "alert" : undefined}>

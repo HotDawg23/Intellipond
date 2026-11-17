@@ -44,9 +44,9 @@ const featureCards = [
 ];
 
 const Index = () => {
-  const { user } = useAuth();
+  const { user, displayName } = useAuth();
   const navigate = useNavigate();
-  const userInitial = String(user?.user_metadata?.full_name ?? user?.email ?? "U").trim().charAt(0).toUpperCase() || "U";
+  const userInitial = String(displayName ?? user?.email ?? "U").trim().charAt(0).toUpperCase() || "U";
   const [ripple, setRipple] = useState(1);
   const [caustics, setCaustics] = useState(0.7);
   const [isStartingSignIn, setIsStartingSignIn] = useState(false);
@@ -264,11 +264,6 @@ const Index = () => {
           </nav>
           <div className="col-start-2 row-start-1 md:col-auto md:row-auto flex items-center gap-2">
             <ThemeControl iconOnly className="h-9 w-9 border border-white/50 bg-white/10 p-0 text-white hover:bg-white/20 hover:text-white" />
-            {!user && (
-              <Button asChild variant="outline" size="sm" className="h-9 min-w-[4.25rem] whitespace-nowrap border-white/50 bg-white/10 px-2 text-sm text-white hover:bg-white/20 hover:text-white sm:min-w-0 sm:px-3">
-                <Link to="/auth?tab=signup"><span className="sm:hidden">Sign up</span><span className="hidden sm:inline">Create an account</span></Link>
-              </Button>
-            )}
             {user ? (
               <Button asChild variant="secondary" size="icon" className="h-9 w-9 rounded-full bg-white p-0 text-primary shadow-sm hover:bg-white/90 dark:text-slate-900">
                 <Link to="/dashboard" aria-label="Open console" title="Open console">
@@ -549,7 +544,7 @@ const Index = () => {
       <section id="research" className="py-16 sm:py-20 px-4 sm:px-6 border-t border-border">
         <FadeContent className="max-w-4xl mx-auto text-center" blur duration={900}>
           <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight">Ready to monitor your pond?</h2>
-          <p className="text-muted-foreground mt-3">Sign in or create an operator account to access your dashboard.</p>
+          <p className="text-muted-foreground mt-3">Sign in with the operator account provided by your administrator.</p>
           <Link to={user ? "/dashboard" : "/auth"} onClick={handleGetStarted} className="inline-block w-full sm:w-auto mt-8">
             <Button size="lg" disabled={isStartingSignIn} aria-busy={isStartingSignIn} className="w-full sm:w-auto gradient-aqua text-white border-0 hover:opacity-90 h-12 px-8">
               {isStartingSignIn ? "Preparing sign in" : user ? "Open dashboard" : "Get started"}

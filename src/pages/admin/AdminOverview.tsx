@@ -343,8 +343,8 @@ const AdminOverview = () => {
 
           <div className="space-y-4 xl:flex xl:h-[42rem] xl:flex-col xl:gap-4 xl:space-y-0">
             <Card className="overflow-hidden xl:flex xl:h-[20.5rem] xl:min-h-0 xl:flex-col">
-              <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-4 sm:px-5">
-                <div className="flex min-w-0 items-center gap-3">
+              <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-border px-4 py-3.5 sm:flex-nowrap sm:py-4 sm:px-5">
+                <div className="flex min-w-0 flex-1 items-center gap-3">
                   <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-300">
                     <AlertCircle className="h-4 w-4" aria-hidden="true" />
                   </span>
@@ -372,22 +372,24 @@ const AdminOverview = () => {
               ) : recentAlerts.length === 0 ? (
                 <p className="flex flex-1 items-center justify-center px-5 py-8 text-sm text-muted-foreground">No new alerts in the last 24 hours.</p>
               ) : (
-                <ul className="min-h-0 flex-1 divide-y divide-border overflow-hidden">
+                <ul className="flex min-h-0 flex-1 flex-col divide-y divide-border overflow-y-auto overscroll-contain">
                   {recentAlerts.map(alert => (
-                    <li key={alert.id} className="px-3 py-2">
-                      <div className="flex min-w-0 items-center gap-1.5">
-                        <Badge variant="outline" className={"shrink-0 px-1.5 py-0 text-[10px] capitalize " + severityClass(alert.severity)}>{alert.severity}</Badge>
-                        <Badge variant="outline" className="shrink-0 px-1.5 py-0 text-[10px] font-normal">{alert.status === "legacy_archived" ? "Legacy" : alert.status === "resolved" ? "Resolved" : alert.acknowledged ? "Acknowledged" : "Unacknowledged"}</Badge>
-                        <span className="truncate text-[11px] capitalize text-muted-foreground">{(alert.condition_key ?? alert.category).replace(/_/g, " ")}</span>
-                      </div>
-                      <p className="mt-0.5 line-clamp-1 text-xs font-medium">{alert.message}</p>
-                      <div className="mt-0.5 flex min-w-0 justify-between gap-2 text-[10px] text-muted-foreground">
-                        <span className="truncate">
-                          {alert.pond_profiles?.name ?? "Pond not specified"}
-                          {alert.last_sensor_value != null && ` · ${Number(alert.last_sensor_value).toFixed(2)}${alert.sensor_type?.toLowerCase() === "do" ? " mg/L" : alert.sensor_type === "temperature" ? " °C" : alert.sensor_type === "turbidity" ? " NTU" : ""}`}
-                        </span>
-                        <time className="shrink-0" dateTime={alert.created_at}>{formatTimestamp(alert.created_at)}</time>
-                      </div>
+                    <li key={alert.id} className="flex flex-1 flex-col px-3 py-2.5 sm:px-4">
+                      <article className="flex flex-1 flex-col justify-between space-y-2 rounded-xl border border-border/70 bg-muted/20 p-3 sm:p-3.5">
+                        <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                          <Badge variant="outline" className={"shrink-0 px-2 py-0.5 text-[10px] font-medium capitalize sm:text-xs " + severityClass(alert.severity)}>{alert.severity}</Badge>
+                          <Badge variant="outline" className="shrink-0 px-2 py-0.5 text-[10px] font-normal sm:text-xs">{alert.status === "legacy_archived" ? "Legacy" : alert.status === "resolved" ? "Resolved" : alert.acknowledged ? "Acknowledged" : "Unacknowledged"}</Badge>
+                          <span className="min-w-0 break-words text-[11px] capitalize text-muted-foreground sm:ml-auto sm:max-w-[40%] sm:truncate">{(alert.condition_key ?? alert.category).replace(/_/g, " ")}</span>
+                        </div>
+                        <p className="line-clamp-2 text-sm font-medium leading-snug">{alert.message}</p>
+                        <div className="flex min-w-0 flex-col gap-1.5 border-t border-border/60 pt-2 text-[11px] text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                          <span className="min-w-0 break-words">
+                            {alert.pond_profiles?.name ?? "Pond not specified"}
+                            {alert.last_sensor_value != null && ` · ${Number(alert.last_sensor_value).toFixed(2)}${alert.sensor_type?.toLowerCase() === "do" ? " mg/L" : alert.sensor_type === "temperature" ? " °C" : alert.sensor_type === "turbidity" ? " NTU" : ""}`}
+                          </span>
+                          <time className="sm:shrink-0" dateTime={alert.created_at}>{formatTimestamp(alert.created_at)}</time>
+                        </div>
+                      </article>
                     </li>
                   ))}
                 </ul>

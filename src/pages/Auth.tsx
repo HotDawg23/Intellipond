@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
-import { useNavigate, Link, useSearchParams } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { ArrowLeft, LoaderCircle } from "lucide-react";
 import authBackgroundImg from "@/assets/auth-dashboard-bg.png";
@@ -13,12 +12,9 @@ import BrandMark from "@/components/BrandMark";
 
 const Auth = () => {
   const nav = useNavigate();
-  const [searchParams] = useSearchParams();
-  const initialTab = searchParams.get("tab") === "signup" ? "signup" : "signin";
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -33,18 +29,6 @@ const Auth = () => {
     if (error) return toast.error(error.message);
     toast.success("Welcome back");
     nav("/dashboard");
-  };
-
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault(); setLoading(true);
-    const { error } = await supabase.auth.signUp({
-      email, password,
-      options: { emailRedirectTo: `${window.location.origin}/pending-approval`, data: { full_name: fullName } }
-    });
-    setLoading(false);
-    if (error) return toast.error(error.message);
-    toast.success("Account created — awaiting admin approval");
-    nav("/pending-approval");
   };
 
   return (
@@ -87,32 +71,19 @@ const Auth = () => {
             <h1 className="text-2xl font-semibold">Operator Access</h1>
             <p className="text-sm text-muted-foreground mt-1">Sign in to your monitoring console.</p>
           </div>
-          <Tabs defaultValue={initialTab} className="mt-6">
-            <TabsList className="grid grid-cols-2 w-full"><TabsTrigger value="signin">Sign in</TabsTrigger><TabsTrigger value="signup">Create account</TabsTrigger></TabsList>
-            <TabsContent value="signin">
-              <form onSubmit={handleSignIn} className="space-y-4 mt-6">
-                <div><Label>Email</Label><Input type="email" required value={email} onChange={e => setEmail(e.target.value)} /></div>
-                <div>
-                  <div className="flex items-center justify-between">
-                    <Label>Password</Label>
-                    <Link to="/forgot-password" className="text-xs text-accent hover:underline">Forgot password?</Link>
-                  </div>
-                  <Input type="password" required value={password} onChange={e => setPassword(e.target.value)} />
-                </div>
-                <Button type="submit" className="w-full gradient-aqua text-white border-0 hover:opacity-90" disabled={loading} aria-busy={loading}>
-                  {loading ? <>Signing in <LoaderCircle aria-hidden="true" className="h-4 w-4 animate-spin" /></> : "Sign in"}
-                </Button>
-              </form>
-            </TabsContent>
-            <TabsContent value="signup">
-              <form onSubmit={handleSignUp} className="space-y-4 mt-6">
-                <div><Label>Full name</Label><Input required value={fullName} onChange={e => setFullName(e.target.value)} /></div>
-                <div><Label>Email</Label><Input type="email" required value={email} onChange={e => setEmail(e.target.value)} /></div>
-                <div><Label>Password</Label><Input type="password" required minLength={8} value={password} onChange={e => setPassword(e.target.value)} /></div>
-                <Button type="submit" className="w-full gradient-aqua text-white border-0 hover:opacity-90" disabled={loading}>{loading ? "Creating…" : "Create account"}</Button>
-              </form>
-            </TabsContent>
-          </Tabs>
+          <form onSubmit={handleSignIn} className="space-y-4 mt-6">
+            <div><Label htmlFor="sign-in-email">Email</Label><Input id="sign-in-email" type="email" autoComplete="email" required value={email} onChange={e => setEmail(e.target.value)} /></div>
+            <div>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="sign-in-password">Password</Label>
+                <Link to="/forgot-password" className="text-xs text-accent hover:underline">Forgot password?</Link>
+              </div>
+              <Input id="sign-in-password" type="password" autoComplete="current-password" required value={password} onChange={e => setPassword(e.target.value)} />
+            </div>
+            <Button type="submit" className="w-full gradient-aqua text-white border-0 hover:opacity-90" disabled={loading} aria-busy={loading}>
+              {loading ? <>Signing in <LoaderCircle aria-hidden="true" className="h-4 w-4 animate-spin" /></> : "Sign in"}
+            </Button>
+          </form>
         </Card>
       </div>
     </div>

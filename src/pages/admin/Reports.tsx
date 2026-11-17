@@ -18,11 +18,12 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { downloadGrowthRecordsCsv } from "@/lib/growth-records-export";
 import type { Report } from "@/lib/report-snapshot";
+import { profileDisplayName } from "@/lib/profile-name";
 
 type SensorReading = Database["public"]["Tables"]["sensor_readings"]["Row"];
 type Pond = Pick<Database["public"]["Tables"]["pond_profiles"]["Row"], "id" | "name">;
 type Batch = Pick<Database["public"]["Tables"]["fish_batches"]["Row"], "id" | "pond_id" | "batch_name">;
-type Profile = Pick<Database["public"]["Tables"]["profiles"]["Row"], "id" | "full_name" | "email" | "approved">;
+type Profile = Pick<Database["public"]["Tables"]["profiles"]["Row"], "id" | "first_name" | "middle_name" | "last_name" | "full_name" | "email" | "approved">;
 type UserRole = Pick<Database["public"]["Tables"]["user_roles"]["Row"], "user_id" | "role">;
 type Recipient = Database["public"]["Tables"]["report_recipients"]["Row"];
 
@@ -66,7 +67,7 @@ const Reports = () => {
         supabase.from("reports").select("*").order("created_at", { ascending: false }),
         supabase.from("pond_profiles").select("id,name").order("name"),
         supabase.from("fish_batches").select("id,pond_id,batch_name").order("stocking_date", { ascending: false }),
-        supabase.from("profiles").select("id,full_name,email,approved"),
+        supabase.from("profiles").select("id,first_name,middle_name,last_name,full_name,email,approved"),
         supabase.from("user_roles").select("user_id,role"),
         supabase.from("report_recipients").select("report_id,user_id"),
       ]);
@@ -242,7 +243,7 @@ const Reports = () => {
                         <Checkbox id={`report-operator-${operator.id}`} checked={form.operatorIds.includes(operator.id)}
                           onCheckedChange={() => setForm({ ...form, operatorIds: toggleOperator(form.operatorIds, operator.id) })} />
                         <Label htmlFor={`report-operator-${operator.id}`} className="cursor-pointer font-normal">
-                          {operator.full_name || operator.email || "Unnamed operator"}
+                          {profileDisplayName(operator)}
                         </Label>
                       </div>
                     ))}
@@ -313,7 +314,7 @@ const Reports = () => {
                 <Checkbox id={`share-operator-${operator.id}`} checked={shareIds.includes(operator.id)}
                   onCheckedChange={() => setShareIds(toggleOperator(shareIds, operator.id))} />
                 <Label htmlFor={`share-operator-${operator.id}`} className="cursor-pointer font-normal">
-                  {operator.full_name || operator.email || "Unnamed operator"}
+                  {profileDisplayName(operator)}
                 </Label>
               </div>
             ))}
