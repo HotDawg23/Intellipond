@@ -1,13 +1,13 @@
 import { supabase } from "@/integrations/supabase/client";
 import { buildGrowthRecordsCsv } from "@/lib/growth-records-csv";
-import type { GrowthWaterAveragesRecord } from "@/lib/growth-records-csv";
+import type { BatchWaterQualityReference, GrowthCsvRecord, GrowthWaterAveragesRecord } from "@/lib/growth-records-csv";
 
 export { buildGrowthRecordsCsv } from "@/lib/growth-records-csv";
-export type { GrowthWaterAveragesRecord } from "@/lib/growth-records-csv";
+export type { BatchWaterQualityReference, GrowthCsvRecord, GrowthWaterAveragesRecord } from "@/lib/growth-records-csv";
 
 const PAGE_SIZE = 1000;
 
-export async function fetchGrowthRecordsWithWaterAverages(): Promise<GrowthWaterAveragesRecord[]> {
+export async function fetchGrowthRecordsWithWaterAverages(): Promise<GrowthCsvRecord[]> {
   const records: GrowthWaterAveragesRecord[] = [];
   let offset = 0;
 
@@ -27,7 +27,24 @@ export async function fetchGrowthRecordsWithWaterAverages(): Promise<GrowthWater
     offset += PAGE_SIZE;
   }
 
-  return records;
+  if (records.length === 0) return records;
+
+  const { data: referenceRows, error: referenceError } = await supabase
+    .from("batch_water_quality_references")
+    .select("fish_batch_id, do_mg_l, ph, temperature_c, turbidity_ntu");
+
+  if (referenceError) throw referenceError;
+
+  const references = new Map<string, BatchWaterQualityReference>(
+    (referenceRows ?? []).map(({ fish_batch_id, ...reference }) => [fish_batch_id, reference]),
+  );
+
+  return records.map(record => ({
+    ...record,
+    batchWaterQualityReference: record.fish_batch_id
+      ? references.get(record.fish_batch_id) ?? null
+      : null,
+  }));
 }
 
 export async function downloadGrowthRecordsCsv(): Promise<number> {

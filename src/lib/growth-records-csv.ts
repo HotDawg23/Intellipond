@@ -1,6 +1,13 @@
 import type { Tables } from "@/integrations/supabase/types";
 
 export type GrowthWaterAveragesRecord = Tables<"growth_records_with_water_averages">;
+export type BatchWaterQualityReference = Pick<
+  Tables<"batch_water_quality_references">,
+  "do_mg_l" | "ph" | "temperature_c" | "turbidity_ntu"
+>;
+export type GrowthCsvRecord = GrowthWaterAveragesRecord & {
+  batchWaterQualityReference?: BatchWaterQualityReference | null;
+};
 
 const CSV_COLUMNS: Array<[string, keyof GrowthWaterAveragesRecord]> = [
   ["growth_record_id", "id"],
@@ -27,6 +34,27 @@ const CSV_COLUMNS: Array<[string, keyof GrowthWaterAveragesRecord]> = [
   ["recorded_at_utc", "recorded_at"],
 ];
 
+const READING_COUNT_COLUMNS = new Set<keyof GrowthWaterAveragesRecord>([
+  "do_reading_count",
+  "ph_reading_count",
+  "temperature_reading_count",
+  "turbidity_reading_count",
+]);
+
+const WATER_AVERAGE_REFERENCE_FIELDS: Partial<Record<keyof GrowthWaterAveragesRecord, keyof BatchWaterQualityReference>> = {
+  avg_do_mg_l: "do_mg_l",
+  avg_ph: "ph",
+  avg_temperature_c: "temperature_c",
+  avg_turbidity_ntu: "turbidity_ntu",
+};
+
+const WATER_AVERAGE_COUNT_FIELDS: Partial<Record<keyof GrowthWaterAveragesRecord, keyof GrowthWaterAveragesRecord>> = {
+  avg_do_mg_l: "do_reading_count",
+  avg_ph: "ph_reading_count",
+  avg_temperature_c: "temperature_reading_count",
+  avg_turbidity_ntu: "turbidity_reading_count",
+};
+
 function startsWithSpreadsheetFormula(value: string): boolean {
   for (const character of value) {
     if (character.trim() === "" || character.charCodeAt(0) === 0) continue;
@@ -47,10 +75,24 @@ function csvCell(value: unknown): string {
   return `"${text.replace(/"/g, '""')}"`;
 }
 
-export function buildGrowthRecordsCsv(records: GrowthWaterAveragesRecord[]): string {
+export function buildGrowthRecordsCsv(records: GrowthCsvRecord[]): string {
   const header = CSV_COLUMNS.map(([name]) => csvCell(name)).join(",");
   const rows = records.map(record => CSV_COLUMNS
-    .map(([, key]) => csvCell(record[key]))
+    .map(([, key]) => {
+      const value = record[key];
+      const referenceField = WATER_AVERAGE_REFERENCE_FIELDS[key];
+      const countField = WATER_AVERAGE_COUNT_FIELDS[key];
+      if (
+        referenceField && countField && value == null &&
+        (record[countField] == null || record[countField] === 0)
+      ) {
+        const referenceValue = record.batchWaterQualityReference?.[referenceField];
+        if (referenceValue != null) return csvCell(referenceValue);
+      }
+
+      // Keep an absent reading count blank instead of implying a zero measurement.
+      return csvCell(READING_COUNT_COLUMNS.has(key) && value === 0 ? null : value);
+    })
     .join(","));
   return `\uFEFF${[header, ...rows].join("\r\n")}`;
 }
